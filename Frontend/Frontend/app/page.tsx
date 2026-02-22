@@ -66,7 +66,12 @@ const CodeStreamBackground = () => {
 
   const stream1 = Array(15).fill(codeSnippet).flat();
   const stream2 = Array(15).fill([...codeSnippet].reverse()).flat();
-  const stream3 = Array(15).fill([...codeSnippet].sort(() => 0.5 - Math.random())).flat();
+  const shuffledSnippet = [
+    codeSnippet[7], codeSnippet[2], codeSnippet[9], codeSnippet[0],
+    codeSnippet[5], codeSnippet[11], codeSnippet[3], codeSnippet[8],
+    codeSnippet[1], codeSnippet[10], codeSnippet[6], codeSnippet[4]
+  ];
+  const stream3 = Array(15).fill(shuffledSnippet).flat();
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10 opacity-[0.03] dark:opacity-[0.08] flex justify-between px-4 sm:px-20 text-xs sm:text-sm font-mono text-slate-900 dark:text-emerald-400 leading-loose select-none" style={{ WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}>
@@ -277,10 +282,10 @@ const GMMChart = () => (
 // --- Interactive Hacker Face Component ---
 const HackerFace = () => {
   const [mouse, setMouse] = useState({ x: 0, y: 0 });
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: MouseEvent) => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
@@ -289,7 +294,7 @@ const HackerFace = () => {
       const moveX = (e.clientX - centerX) / 40;
       const moveY = (e.clientY - centerY) / 40;
 
-      const maxMove = 7;
+      const maxMove = 7; // Reverted back to original limit
       const distance = Math.sqrt(moveX * moveX + moveY * moveY);
 
       let finalX = moveX;
@@ -308,14 +313,14 @@ const HackerFace = () => {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-48 h-48 flex flex-col items-center justify-center mb-2">
-      {/* Classic Black Hat / Fedora SVG */}
-      <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full text-slate-900 dark:text-black z-0 drop-shadow-2xl">
-        <ellipse cx="50" cy="45" rx="42" ry="8" fill="#111" />
-        <path d="M 28 45 Q 35 5 50 5 Q 65 5 72 45 Z" fill="#0a0a0a" />
-        <path d="M 28 42 Q 50 48 72 42 L 71 45 Q 50 51 29 45 Z" fill="#333" />
-        <path d="M 15 100 L 30 65 L 70 65 L 85 100 Z" fill="#111" />
-        <path d="M 30 65 L 50 80 L 70 65" fill="none" stroke="#222" strokeWidth="2" />
+    <div ref={containerRef} className="relative w-64 h-64 sm:w-80 sm:h-80 flex flex-col items-center justify-center -mt-8 mx-auto lg:mx-0 ml-0 lg:-ml-8">
+      {/* Classic Hacker / Fedora SVG with Red glow */}
+      <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full z-0 drop-shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+        <ellipse cx="50" cy="45" rx="42" ry="8" className="fill-slate-800 dark:fill-slate-700" />
+        <path d="M 28 45 Q 35 5 50 5 Q 65 5 72 45 Z" className="fill-slate-900 dark:fill-slate-800" />
+        <path d="M 28 42 Q 50 48 72 42 L 71 45 Q 50 51 29 45 Z" className="fill-slate-700 dark:fill-slate-600" />
+        <path d="M 15 100 L 30 65 L 70 65 L 85 100 Z" className="fill-slate-800 dark:fill-slate-700" />
+        <path d="M 30 65 L 50 80 L 70 65" fill="none" className="stroke-slate-900 dark:stroke-slate-600" strokeWidth="2" />
       </svg>
 
       {/* Glowing Eyes Container */}
@@ -369,10 +374,10 @@ const triadData = [
 ];
 
 const teamData = [
-  { name: "Yashika", role: "Lead ML Engineer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Yashika&backgroundColor=b6e3f4" },
-  { name: "Alex Chen", role: "Frontend Architect", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Alex&backgroundColor=c0aede" },
-  { name: "Sarah Jones", role: "Security Analyst", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Sarah&backgroundColor=ffdfbf" },
-  { name: "David Kim", role: "Backend Developer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=David&backgroundColor=d1d4f9" }
+  { name: "Akshi Malik", role: "Lead ML Engineer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Yashika&backgroundColor=b6e3f4" },
+  { name: "Anamika Chahal", role: "Frontend Architect", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Alex&backgroundColor=c0aede" },
+  { name: "Priyanshi", role: "Security Analyst", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Sarah&backgroundColor=ffdfbf" },
+  { name: "Archit", role: "Backend Developer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=David&backgroundColor=d1d4f9" }
 ];
 
 export default function App() {
@@ -406,23 +411,24 @@ export default function App() {
 
         {/* Navbar / Theme Toggle */}
         <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-8 py-4 bg-white/40 dark:bg-neutral-950/40 backdrop-blur-md border-b border-slate-200/50 dark:border-neutral-800/50">
-          <div className="flex items-center gap-2 font-bold text-xl tracking-tight z-10">
+          <div className="flex items-center gap-2 font-bold text-xl tracking-tight z-10 shrink-0">
             <ShieldCheck className="w-6 h-6 text-blue-500" />
             <span>Neurometric<span className="text-blue-500">Shield</span></span>
           </div>
 
-          <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-700 dark:text-neutral-300 z-10">
-            <a href="#tech" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Technology</a>
-            <a href="#portals" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Portals</a>
-            <a href="#contact" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Contact Us</a>
-          </div>
+          <div className="flex items-center gap-6 z-10">
+            <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-700 dark:text-neutral-300">
+              <a href="#portals" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Simulations</a>
+              <a href="#contact" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Contact Us</a>
+            </div>
 
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full bg-slate-200/80 dark:bg-neutral-800/80 text-slate-600 dark:text-neutral-300 hover:scale-110 transition-transform z-10 backdrop-blur-sm"
-          >
-            {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full bg-slate-200/80 dark:bg-neutral-800/80 text-slate-600 dark:text-neutral-300 hover:scale-110 transition-transform backdrop-blur-sm"
+            >
+              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </div>
         </nav>
 
         {/* --- SECTION 1: THE HERO --- */}
@@ -769,14 +775,16 @@ export default function App() {
                       <div className="w-12 h-12 shrink-0 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center">
                         <TerminalSquare className="w-6 h-6" />
                       </div>
-                      <div>
+                      <div className="flex flex-col w-full">
                         <h3 className="text-xl sm:text-2xl font-bold mb-2 text-slate-900 dark:text-white">Live Prototype</h3>
                         <p className="text-slate-600 dark:text-neutral-400 text-sm sm:text-base mb-4 leading-relaxed">
                           Test the unsupervised learning models safely. Because logins from your current device will always register as "Normal", use this portal to simulate fake sign-ins. Select mock users, inject custom parameters (Time, Location, IP, OS), and watch the AI flag anomalies instantly.
                         </p>
-                        <a href="/prototype" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-blue-500/30 w-full sm:w-auto">
-                          Launch Simulator
-                        </a>
+                        <div className="flex justify-end w-full">
+                          <a href="/prototype" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-blue-500/30 w-full sm:w-auto">
+                            Launch Simulator
+                          </a>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -789,14 +797,16 @@ export default function App() {
                       <div className="w-12 h-12 shrink-0 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center">
                         <LayoutDashboard className="w-6 h-6" />
                       </div>
-                      <div>
+                      <div className="flex flex-col w-full">
                         <h3 className="text-xl sm:text-2xl font-bold mb-2 text-slate-900 dark:text-white">SOC Dashboard</h3>
                         <p className="text-slate-600 dark:text-neutral-400 text-sm sm:text-base mb-4 leading-relaxed">
                           The command center for Security Operations. The exact same data injected in the prototype is continuously streamed here for real-time threat hunting. View live telemetry streams, filter and query network events, and plot graphs of behavioral deviations.
                         </p>
-                        <a href="/dashboard" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-purple-500/30 w-full sm:w-auto">
-                          Enter Dashboard
-                        </a>
+                        <div className="flex justify-end w-full">
+                          <a href="/dashboard" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-purple-500/30 w-full sm:w-auto">
+                            Enter Dashboard
+                          </a>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -806,11 +816,11 @@ export default function App() {
               {/* Right Side: Text & Hacker */}
               <div className="lg:col-span-5 flex flex-col items-center lg:items-start text-center lg:text-left">
                 <FadeIn direction="left">
-                  <h3 className="text-3xl sm:text-4xl font-mono font-bold text-cyan-600 dark:text-cyan-400 mb-4 tracking-tight drop-shadow-md">
+                  <h3 className="text-4xl sm:text-5xl lg:text-6xl font-mono font-bold text-cyan-600 dark:text-cyan-400 mb-6 tracking-tight drop-shadow-md">
                     We are watching every move.
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400 text-base sm:text-lg mb-8 leading-relaxed bg-white/30 dark:bg-neutral-900/40 backdrop-blur-sm p-5 rounded-2xl border border-white/20 dark:border-white/5">
-                    Access the control centers to interact directly with the Neurometric Shield infrastructure. You can safely simulate anomalous behaviors, inject mock network telemetry, and watch our ensemble of unsupervised machine learning models detect and mitigate threats in real-time.
+                    Simulate anomalous behaviors and watch our ML ensemble detect threats in real-time.
                   </p>
                   <HackerFace />
                 </FadeIn>
@@ -821,7 +831,7 @@ export default function App() {
         </section>
 
         {/* --- SECTION 6: MEET THE TEAM & CONTACT (CONSOLIDATED FOOTER) --- */}
-        <section id="contact" className="py-24 px-6 sm:px-12 relative z-10 border-t border-slate-200/50 dark:border-neutral-900/50 bg-slate-50/50 dark:bg-neutral-950/50">
+        <section id="contact" className="pt-24 pb-4 px-6 sm:px-12 relative z-10 bg-gradient-to-b from-transparent to-slate-50/50 dark:to-neutral-950/50">
           <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto">
 
             <FadeIn>
@@ -887,13 +897,9 @@ export default function App() {
             </FadeIn>
 
             {/* Final Copyright Bar */}
-            <div className="mt-16 flex flex-col md:flex-row justify-between items-center text-sm text-slate-500 dark:text-neutral-500">
-              <div className="flex items-center gap-2 mb-4 md:mb-0 font-bold tracking-tight">
-                <ShieldCheck className="w-5 h-5 text-blue-500" />
-                Neurometric Shield
-              </div>
+            <div className="mt-8 flex justify-center items-center text-sm text-slate-500 dark:text-neutral-500 text-center">
               <p>
-                © {new Date().getFullYear()} Neurometric Shield UEBA. Created by Yashika & Team. All rights reserved.
+                © {new Date().getFullYear()} Neurometric Shield UEBA. All rights reserved.
               </p>
             </div>
 
