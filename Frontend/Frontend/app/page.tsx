@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -65,22 +64,18 @@ const CodeStreamBackground = () => {
     "const deviation = Math.abs(baseline - current_val);"
   ];
 
-  // Repeat the snippets to make a long scrolling column
   const stream1 = Array(15).fill(codeSnippet).flat();
   const stream2 = Array(15).fill([...codeSnippet].reverse()).flat();
   const stream3 = Array(15).fill([...codeSnippet].sort(() => 0.5 - Math.random())).flat();
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10 opacity-[0.03] dark:opacity-[0.08] flex justify-between px-4 sm:px-20 text-xs sm:text-sm font-mono text-slate-900 dark:text-emerald-400 leading-loose select-none" style={{ WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}>
-      {/* Column 1 */}
       <motion.div animate={{ y: [0, -2000] }} transition={{ repeat: Infinity, duration: 60, ease: "linear" }} className="w-1/3 hidden sm:block">
         {stream1.map((line, i) => <div key={`s1-${i}`} className="truncate pr-4">{line}</div>)}
       </motion.div>
-      {/* Column 2 (Faster, Starts Offset) */}
       <motion.div animate={{ y: [-1000, -3000] }} transition={{ repeat: Infinity, duration: 45, ease: "linear" }} className="w-full sm:w-1/3">
         {stream2.map((line, i) => <div key={`s2-${i}`} className="truncate pr-4">{line}</div>)}
       </motion.div>
-      {/* Column 3 (Slower) */}
       <motion.div animate={{ y: [-500, -2500] }} transition={{ repeat: Infinity, duration: 80, ease: "linear" }} className="w-1/3 hidden lg:block">
         {stream3.map((line, i) => <div key={`s3-${i}`} className="truncate pr-4">{line}</div>)}
       </motion.div>
@@ -223,7 +218,7 @@ const NeuralBackground = ({ theme }) => {
 
 // --- Custom Model Charts (SVG) ---
 const OCSVMChart = () => (
-  <svg viewBox="0 0 200 100" className="w-full h-full p-4 overflow-visible">
+  <svg viewBox="-20 -10 240 120" className="w-full h-full overflow-visible" preserveAspectRatio="xMidYMid meet">
     <circle cx="100" cy="50" r="35" fill="rgba(34, 197, 94, 0.1)" stroke="#22c55e" strokeWidth="2" strokeDasharray="4 4" />
     <text x="100" y="25" fill="#22c55e" fontSize="8" textAnchor="middle" className="font-mono opacity-70">Normal Baseline</text>
     {/* Normal Data Points */}
@@ -242,7 +237,7 @@ const OCSVMChart = () => (
 );
 
 const AutoencoderChart = () => (
-  <svg viewBox="0 0 200 100" className="w-full h-full p-2">
+  <svg viewBox="-20 -10 240 120" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
     {/* Connections */}
     <path d="M 40 20 L 80 35 M 40 50 L 80 35 M 40 80 L 80 65 M 40 50 L 80 65 M 80 35 L 120 50 M 80 65 L 120 50 M 120 50 L 160 35 M 120 50 L 160 65 M 160 35 L 200 20 M 160 35 L 200 50 M 160 65 L 200 50 M 160 65 L 200 80" stroke="#a855f7" strokeWidth="1" opacity="0.4" />
     {/* Input Layer */}
@@ -265,7 +260,7 @@ const AutoencoderChart = () => (
 );
 
 const GMMChart = () => (
-  <svg viewBox="0 0 200 100" className="w-full h-full p-2">
+  <svg viewBox="-20 -10 240 120" className="w-full h-full p-2">
     {/* Grid lines */}
     <line x1="20" y1="80" x2="180" y2="80" stroke="currentColor" strokeWidth="1" opacity="0.2" />
     {/* Curve 1 */}
@@ -313,7 +308,7 @@ const HackerFace = () => {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-48 h-48 mx-auto flex flex-col items-center justify-center mb-2">
+    <div ref={containerRef} className="relative w-48 h-48 flex flex-col items-center justify-center mb-2">
       {/* Classic Black Hat / Fedora SVG */}
       <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full text-slate-900 dark:text-black z-0 drop-shadow-2xl">
         <ellipse cx="50" cy="45" rx="42" ry="8" fill="#111" />
@@ -381,7 +376,23 @@ const teamData = [
 ];
 
 export default function App() {
-  const [activeSlide, setActiveSlide] = useState(0);
+  const [activeSlide, setActiveSlide] = useState<number | null>(null); // Default to null so none are expanded
+  const [hoveredSlide, setHoveredSlide] = useState<number | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnterSlide = (index: number) => {
+    setHoveredSlide(index);
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setActiveSlide(index);
+    }, 1000); // 1 sec delay to expand
+  };
+
+  const handleMouseLeaveContainer = () => {
+    setHoveredSlide(null);
+    setActiveSlide(null);
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  };
   const [theme, setTheme] = useState("dark");
 
   const toggleTheme = () => {
@@ -394,11 +405,18 @@ export default function App() {
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50/50 to-slate-100 dark:from-neutral-950 dark:via-slate-900/80 dark:to-neutral-950 text-slate-900 dark:text-neutral-100 font-sans selection:bg-blue-500/30 overflow-x-hidden transition-colors duration-700 ease-in-out">
 
         {/* Navbar / Theme Toggle */}
-        <nav className="fixed top-0 w-full z-50 flex justify-between items-center p-6 bg-white/40 dark:bg-neutral-950/40 backdrop-blur-md border-b border-slate-200/50 dark:border-neutral-800/50">
+        <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-8 py-4 bg-white/40 dark:bg-neutral-950/40 backdrop-blur-md border-b border-slate-200/50 dark:border-neutral-800/50">
           <div className="flex items-center gap-2 font-bold text-xl tracking-tight z-10">
             <ShieldCheck className="w-6 h-6 text-blue-500" />
             <span>Neurometric<span className="text-blue-500">Shield</span></span>
           </div>
+
+          <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-700 dark:text-neutral-300 z-10">
+            <a href="#tech" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Technology</a>
+            <a href="#portals" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Portals</a>
+            <a href="#contact" className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">Contact Us</a>
+          </div>
+
           <button
             onClick={toggleTheme}
             className="p-2 rounded-full bg-slate-200/80 dark:bg-neutral-800/80 text-slate-600 dark:text-neutral-300 hover:scale-110 transition-transform z-10 backdrop-blur-sm"
@@ -425,7 +443,7 @@ export default function App() {
             />
           </div>
 
-          <div className="w-full max-w-5xl flex flex-col items-center z-10 pt-20 pointer-events-auto">
+          <div className="w-full max-w-7xl 2xl:max-w-[1440px] flex flex-col items-center z-10 pt-20 pointer-events-auto">
             <FadeIn delay={0.1}>
               <div className="inline-flex items-center justify-center px-4 py-1.5 mb-8 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/40 border border-emerald-300/50 dark:border-emerald-500/50 rounded-full shadow-lg backdrop-blur-md">
                 <span className="relative flex h-2 w-2 mr-2">
@@ -446,7 +464,7 @@ export default function App() {
             </FadeIn>
 
             <FadeIn delay={0.3}>
-              <p className="text-lg sm:text-xl text-slate-700 dark:text-neutral-300 text-center max-w-3xl mb-12 leading-relaxed bg-white/40 dark:bg-neutral-900/40 backdrop-blur-md p-4 rounded-xl border border-white/30 dark:border-white/5 shadow-xl">
+              <p className="text-lg sm:text-xl text-slate-700 dark:text-neutral-300 text-center max-w-3xl mb-12 leading-relaxed bg-white/40 dark:bg-neutral-900/40 backdrop-blur-md p-6 rounded-2xl border border-white/30 dark:border-white/5 shadow-xl">
                 Welcome to <strong>Neurometric Shield</strong>. An enterprise-grade UEBA platform utilizing unsupervised learning. We don't just verify logins; we constantly monitor <em>how</em> you behave post-authentication.
               </p>
             </FadeIn>
@@ -469,7 +487,7 @@ export default function App() {
         <section className="py-24 px-6 sm:px-12 relative z-10">
           <div className="absolute left-0 top-1/2 w-96 h-96 bg-emerald-500/10 dark:bg-emerald-600/10 blur-[120px] rounded-full pointer-events-none -z-10 -translate-y-1/2"></div>
 
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto">
             <FadeIn>
               <div className="text-center mb-16">
                 <h2 className="text-3xl sm:text-5xl font-bold mb-4">Continuous <span className="text-blue-600 dark:text-blue-400">Risk Assessment.</span></h2>
@@ -591,87 +609,94 @@ export default function App() {
           </div>
         </section>
 
-        {/* --- SECTION 3: THE CORE TRIAD --- */}
-        <section className="py-24 px-6 sm:px-12 relative z-10 overflow-hidden">
+        {/* --- SECTION 3: THE CORE TRIAD (ACCORDION LAYOUT) --- */}
+        <section id="tech" className="py-24 px-6 sm:px-12 relative z-10 overflow-hidden">
 
-          {/* Animated Running Code Stream Background */}
           <CodeStreamBackground />
-
-          {/* Ambient Lighting Orbs */}
           <motion.div animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }} className="absolute right-0 top-1/2 w-[500px] h-[500px] bg-purple-500/20 dark:bg-purple-600/20 blur-[150px] rounded-full pointer-events-none -z-10 -translate-y-1/2"></motion.div>
           <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }} className="absolute left-0 bottom-0 w-[400px] h-[400px] bg-blue-500/20 dark:bg-blue-600/20 blur-[150px] rounded-full pointer-events-none -z-10 translate-y-1/4 -translate-x-1/4"></motion.div>
 
-          <div className="max-w-6xl mx-auto relative z-10">
-            <FadeIn>
-              <div className="text-center mb-16">
-                <h2 className="text-3xl sm:text-5xl font-bold mb-4">Powered by a Multi-Dimensional <span className="text-purple-600 dark:text-purple-400">AI Ensemble.</span></h2>
-                <p className="text-slate-600 dark:text-neutral-400 max-w-2xl mx-auto bg-white/30 dark:bg-neutral-900/40 backdrop-blur-sm p-3 rounded-lg inline-block">Three specialized unsupervised ML models working in harmony to establish a baseline of normal behavior and catch unknown threats.</p>
-              </div>
-            </FadeIn>
+          <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto relative z-10 w-full">
+            <div className="flex flex-col lg:flex-row gap-16 items-start">
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-5 flex flex-col gap-4">
-                {triadData.map((item, index) => (
-                  <FadeIn key={item.id} delay={index * 0.1} direction="right">
-                    <button
-                      onClick={() => setActiveSlide(index)}
-                      className={`w-full text-left p-6 rounded-xl border transition-all duration-300 backdrop-blur-md ${activeSlide === index
-                        ? "bg-white/90 dark:bg-neutral-800/90 border-slate-300 dark:border-neutral-500 shadow-xl shadow-blue-900/10 scale-[1.02]"
-                        : "bg-white/40 dark:bg-neutral-900/40 border-slate-200/50 dark:border-neutral-800/50 hover:border-slate-300 dark:hover:border-neutral-700 hover:bg-white/70 dark:hover:bg-neutral-800/70 text-slate-500 dark:text-neutral-500"
-                        }`}
-                    >
-                      <h3 className={`text-xl font-bold mb-1 ${activeSlide === index ? "text-slate-900 dark:text-white" : ""}`}>
-                        {item.title}
-                      </h3>
-                      <p className="text-sm font-mono text-blue-600 dark:text-blue-400">{item.algorithm}</p>
-                    </button>
-                  </FadeIn>
-                ))}
-              </div>
+              {/* Left Side: Text */}
+              <FadeIn direction="right" className="lg:w-1/2">
+                <div className="text-center lg:text-left h-full flex flex-col justify-start">
+                  <h2 className="text-4xl sm:text-5xl lg:text-5xl xl:text-6xl font-extrabold mb-8 leading-none -mt-2">Powered by a Multi-Dimensional <br className="hidden xl:block" /><span className="text-purple-600 dark:text-purple-400">AI Ensemble.</span></h2>
+                  <p className="text-slate-600 dark:text-neutral-300 text-lg sm:text-xl leading-relaxed">
+                    We deploy three specialized unsupervised ML models working in harmony. Because threats constantly evolve, we don't rely on static rules. Instead, our ensemble establishes a dynamic baseline of "normal" behavior and automatically flags previously unknown anomalies and deviations in real-time.
+                  </p>
+                </div>
+              </FadeIn>
 
-              <div className="lg:col-span-7 relative h-[450px] rounded-2xl border border-slate-200/50 dark:border-neutral-800/50 bg-white/60 dark:bg-neutral-900/60 backdrop-blur-xl overflow-hidden flex flex-col items-center justify-center p-8 shadow-2xl">
+              {/* Right Side: Hover Accordion Tiles */}
+              <FadeIn direction="left" className="lg:w-1/2">
+                {/* Dynamically adapt grid rows based on hover to prevent exceeding natural column height */}
+                <div className="grid grid-cols-2 gap-4 w-full grid-flow-row-dense transition-all duration-500" onMouseLeave={handleMouseLeaveContainer}>
+                  {triadData.map((item, index) => {
+                    const isActive = activeSlide === index;
+                    const isAnyActive = activeSlide !== null;
+                    const isHovered = hoveredSlide === index;
+                    return (
+                      <div
+                        key={item.id}
+                        onMouseEnter={() => handleMouseEnterSlide(index)}
+                        className={`relative overflow-hidden rounded-2xl transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] flex flex-col backdrop-blur-md cursor-pointer border ${isAnyActive
+                          ? isActive
+                            ? "col-span-2 min-h-[88px] bg-white/80 dark:bg-neutral-800/90 border-blue-400/50 shadow-[0_0_30px_rgba(59,130,246,0.15)] z-10"
+                            : "col-span-1 h-[88px] bg-white/40 dark:bg-neutral-900/40 border-slate-200/50 dark:border-neutral-800/50 hover:bg-white/60 dark:hover:bg-neutral-800/60"
+                          : "col-span-2 h-[88px] bg-white/40 dark:bg-neutral-900/40 border-slate-200/50 dark:border-neutral-800/50 hover:bg-white/60 dark:hover:bg-neutral-800/60"
+                          }`}
+                      >
+                        {/* 1s Hover flowing background */}
+                        <div
+                          className={`absolute top-0 left-0 h-full w-full bg-gradient-to-r ${item.color} opacity-20 pointer-events-none transition-transform duration-1000 ease-linear z-0 origin-left`}
+                          style={{ transform: (isHovered || isActive) ? 'scaleX(1)' : 'scaleX(0)' }}
+                        />
 
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeSlide}
-                    initial={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
-                    animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                    exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
-                    transition={{ duration: 0.4 }}
-                    className="flex flex-col items-center text-center max-w-md z-10 w-full"
-                  >
-                    <div className={`w-20 h-20 rounded-2xl mb-6 flex items-center justify-center bg-gradient-to-tr ${triadData[activeSlide].color} shadow-lg shadow-blue-500/20`}>
-                      {(() => {
-                        const Icon = triadData[activeSlide].icon;
-                        return <Icon className="w-10 h-10 text-white" />;
-                      })()}
-                    </div>
+                        {/* Always Visible Header */}
+                        <div className="p-5 flex items-center gap-4 shrink-0 h-[88px] relative z-10">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-tr ${item.color} shadow-lg`}>
+                            {(() => {
+                              const Icon = item.icon;
+                              return <Icon className="w-6 h-6 text-white" />;
+                            })()}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 dark:text-white truncate">{item.title}</h3>
+                            <p className="text-xs sm:text-sm font-mono text-blue-600 dark:text-blue-400 truncate">{item.algorithm}</p>
+                          </div>
+                        </div>
 
-                    {/* Live Generated SVG Charts */}
-                    <div className="w-full h-40 mb-6 bg-slate-50/80 dark:bg-neutral-950/80 backdrop-blur-md rounded-xl flex items-center justify-center border border-slate-200/80 dark:border-neutral-800/80 overflow-hidden relative shadow-inner">
-                      {(() => {
-                        const Chart = triadData[activeSlide].chart;
-                        return <Chart />;
-                      })()}
-                    </div>
+                        {/* Expanded Content Area with smooth CSS Grid auto-height transition hook */}
+                        <div className={`grid transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] flex-grow ${isActive ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                          <div className="overflow-hidden flex flex-col px-6 pb-6 h-full">
+                            <p className="text-slate-600 dark:text-neutral-400 text-sm leading-relaxed mb-4 shrink-0">
+                              {item.description}
+                            </p>
+                            <div className="flex-grow w-full bg-slate-50/80 dark:bg-neutral-950/80 backdrop-blur-md rounded-xl flex items-center justify-center border border-slate-200/80 dark:border-neutral-800/80 shadow-inner overflow-hidden p-2 sm:p-4">
+                              {(() => {
+                                const Chart = item.chart;
+                                return <Chart />;
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
 
-                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{triadData[activeSlide].title}</h3>
-                    <p className="text-slate-600 dark:text-neutral-400 text-sm leading-relaxed">
-                      {triadData[activeSlide].description}
-                    </p>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
+              </FadeIn>
             </div>
           </div>
         </section>
 
-        {/* --- SECTION 4: THE PIPELINE ARCHITECTURE (SEAMLESSLY BLENDED) --- */}
+        {/* --- SECTION 4: THE PIPELINE ARCHITECTURE --- */}
         <section className="py-24 px-6 sm:px-12 relative overflow-hidden z-10 bg-gradient-to-b from-transparent via-blue-50/40 dark:via-cyan-950/20 to-transparent">
-          {/* Fading Grid overlay */}
           <div className="absolute inset-0 opacity-20 dark:opacity-30 bg-[linear-gradient(rgba(0,0,0,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.3)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.2)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.2)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" style={{ WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)' }}></div>
 
-          <div className="max-w-6xl mx-auto relative z-10">
+          <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto relative z-10">
             <FadeIn>
               <div className="text-center mb-20 relative z-10">
                 <h2 className="text-3xl sm:text-5xl font-bold mb-4">The Data <span className="text-cyan-600 dark:text-cyan-400">Pipeline.</span></h2>
@@ -690,7 +715,6 @@ export default function App() {
                 ></motion.div>
               </div>
 
-              {/* Ensuring consistent height with h-full and stretch */}
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-stretch">
                 {[
                   { step: "01. Ingest", title: "Client Side", desc: "Next.js captures raw hardware and HCI telemetry natively in the browser.", icon: Globe2, color: "text-blue-500 dark:text-blue-400" },
@@ -720,89 +744,86 @@ export default function App() {
         {/* --- SECTION 5: THE CONTROL PORTALS & HACKER --- */}
         <section id="portals" className="py-24 px-6 sm:px-12 relative z-10 min-h-screen flex items-center overflow-hidden">
 
-          {/* Cyber Scanning Background Elements */}
           <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden opacity-50 dark:opacity-70">
-            {/* Base Grid */}
             <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.15)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.15)_1px,transparent_1px)] bg-[size:60px_60px]" style={{ WebkitMaskImage: 'radial-gradient(ellipse at center, black 50%, transparent 80%)' }}></div>
-
-            {/* Sweeping Horizontal Scanner Line */}
             <motion.div
               animate={{ y: ["-10%", "110%"] }}
               transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
               className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-transparent to-cyan-500/10 border-b border-cyan-400/50 shadow-[0_4px_20px_rgba(6,182,212,0.3)]"
               style={{ WebkitMaskImage: 'radial-gradient(ellipse at center, black 60%, transparent 90%)' }}
             />
-
-            {/* Blinking Data Nodes in the background */}
             <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ duration: 2, repeat: Infinity, delay: 0.5 }} className="absolute top-[30%] left-[20%] w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]" />
             <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ duration: 3, repeat: Infinity, delay: 1.2 }} className="absolute top-[60%] left-[75%] w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]" />
             <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ duration: 2.5, repeat: Infinity, delay: 2.1 }} className="absolute top-[80%] left-[40%] w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]" />
           </div>
 
-          <div className="max-w-6xl mx-auto w-full relative z-10">
-            <FadeIn>
-              <div className="text-center mb-12 relative z-10 flex flex-col items-center">
-                <h3 className="text-3xl sm:text-5xl font-mono font-bold text-cyan-600 dark:text-cyan-400 mb-6 tracking-tight drop-shadow-md">
-                  "We are watching every move."
-                </h3>
-                <p className="text-slate-600 dark:text-slate-400 max-w-3xl mx-auto text-lg mb-8 leading-relaxed">
-                  Access the control centers to interact directly with the Neurometric Shield infrastructure. You can safely simulate anomalous behaviors, inject mock network telemetry, and watch our ensemble of unsupervised machine learning models detect and mitigate threats in real-time.
-                </p>
-                <HackerFace />
+          <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto w-full relative z-10">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
+
+              {/* Left Side: Cards stacked vertically */}
+              <div className="lg:col-span-7 flex flex-col gap-6">
+                <FadeIn direction="right">
+                  <div className="bg-white/60 dark:bg-neutral-900/50 backdrop-blur-xl border border-blue-200/50 dark:border-blue-900/50 p-6 sm:p-8 rounded-3xl relative overflow-hidden group hover:shadow-[0_0_40px_rgba(59,130,246,0.15)] transition-all">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
+                    <div className="flex flex-col sm:flex-row gap-6 items-start">
+                      <div className="w-12 h-12 shrink-0 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center">
+                        <TerminalSquare className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl sm:text-2xl font-bold mb-2 text-slate-900 dark:text-white">Live Prototype</h3>
+                        <p className="text-slate-600 dark:text-neutral-400 text-sm sm:text-base mb-4 leading-relaxed">
+                          Test the unsupervised learning models safely. Because logins from your current device will always register as "Normal", use this portal to simulate fake sign-ins. Select mock users, inject custom parameters (Time, Location, IP, OS), and watch the AI flag anomalies instantly.
+                        </p>
+                        <a href="/prototype" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-blue-500/30 w-full sm:w-auto">
+                          Launch Simulator
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </FadeIn>
+
+                <FadeIn direction="right" delay={0.2}>
+                  <div className="bg-white/60 dark:bg-neutral-900/50 backdrop-blur-xl border border-purple-200/50 dark:border-purple-900/50 p-6 sm:p-8 rounded-3xl relative overflow-hidden group hover:shadow-[0_0_40px_rgba(168,85,247,0.15)] transition-all">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-purple-500"></div>
+                    <div className="flex flex-col sm:flex-row gap-6 items-start">
+                      <div className="w-12 h-12 shrink-0 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center">
+                        <LayoutDashboard className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl sm:text-2xl font-bold mb-2 text-slate-900 dark:text-white">SOC Dashboard</h3>
+                        <p className="text-slate-600 dark:text-neutral-400 text-sm sm:text-base mb-4 leading-relaxed">
+                          The command center for Security Operations. The exact same data injected in the prototype is continuously streamed here for real-time threat hunting. View live telemetry streams, filter and query network events, and plot graphs of behavioral deviations.
+                        </p>
+                        <a href="/dashboard" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-purple-500/30 w-full sm:w-auto">
+                          Enter Dashboard
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </FadeIn>
               </div>
-            </FadeIn>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Prototype Card */}
-              <FadeIn direction="right" className="h-full">
-                <div className="h-full bg-white/60 dark:bg-neutral-900/50 backdrop-blur-xl border border-blue-200/50 dark:border-blue-900/50 p-10 rounded-3xl relative overflow-hidden group hover:shadow-[0_0_40px_rgba(59,130,246,0.15)] transition-all">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
-                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-6">
-                    <TerminalSquare className="w-8 h-8" />
-                  </div>
-                  <h3 className="text-3xl font-bold mb-4 text-slate-900 dark:text-white">Live Prototype</h3>
-                  <p className="text-slate-600 dark:text-neutral-400 mb-6 leading-relaxed">
-                    Test the unsupervised learning models safely. Because logins from your current device will always register as "Normal", use this portal to simulate fake sign-ins.
+              {/* Right Side: Text & Hacker */}
+              <div className="lg:col-span-5 flex flex-col items-center lg:items-start text-center lg:text-left">
+                <FadeIn direction="left">
+                  <h3 className="text-3xl sm:text-4xl font-mono font-bold text-cyan-600 dark:text-cyan-400 mb-4 tracking-tight drop-shadow-md">
+                    We are watching every move.
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-400 text-base sm:text-lg mb-8 leading-relaxed bg-white/30 dark:bg-neutral-900/40 backdrop-blur-sm p-5 rounded-2xl border border-white/20 dark:border-white/5">
+                    Access the control centers to interact directly with the Neurometric Shield infrastructure. You can safely simulate anomalous behaviors, inject mock network telemetry, and watch our ensemble of unsupervised machine learning models detect and mitigate threats in real-time.
                   </p>
-                  <ul className="space-y-3 mb-8 text-sm text-slate-700 dark:text-neutral-300">
-                    <li className="flex items-center"><ArrowRight className="w-4 h-4 mr-2 text-blue-500" /> Select mock users</li>
-                    <li className="flex items-center"><ArrowRight className="w-4 h-4 mr-2 text-blue-500" /> Inject custom parameters (Time, Location, IP, OS)</li>
-                    <li className="flex items-center"><ArrowRight className="w-4 h-4 mr-2 text-blue-500" /> Watch the AI flag anomalies instantly</li>
-                  </ul>
-                  <a href="/prototype" className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-cyan-500/30 w-full sm:w-auto">
-                    Launch Simulator
-                  </a>
-                </div>
-              </FadeIn>
+                  <HackerFace />
+                </FadeIn>
+              </div>
 
-              {/* SOC Dashboard Card */}
-              <FadeIn direction="left" className="h-full">
-                <div className="h-full bg-white/60 dark:bg-neutral-900/50 backdrop-blur-xl border border-purple-200/50 dark:border-purple-900/50 p-10 rounded-3xl relative overflow-hidden group hover:shadow-[0_0_40px_rgba(168,85,247,0.15)] transition-all">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-purple-500"></div>
-                  <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-2xl flex items-center justify-center mb-6">
-                    <LayoutDashboard className="w-8 h-8" />
-                  </div>
-                  <h3 className="text-3xl font-bold mb-4 text-slate-900 dark:text-white">SOC Dashboard</h3>
-                  <p className="text-slate-600 dark:text-neutral-400 mb-6 leading-relaxed">
-                    The command center for Security Operations. The exact same data injected in the prototype is continuously streamed here for real-time threat hunting.
-                  </p>
-                  <ul className="space-y-3 mb-8 text-sm text-slate-700 dark:text-neutral-300">
-                    <li className="flex items-center"><ArrowRight className="w-4 h-4 mr-2 text-purple-500" /> View live telemetry streams</li>
-                    <li className="flex items-center"><ArrowRight className="w-4 h-4 mr-2 text-purple-500" /> Filter and query network events</li>
-                    <li className="flex items-center"><ArrowRight className="w-4 h-4 mr-2 text-purple-500" /> Plot graphs of behavioral deviations</li>
-                  </ul>
-                  <a href="/dashboard" className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-purple-500/30 w-full sm:w-auto">
-                    Enter Dashboard
-                  </a>
-                </div>
-              </FadeIn>
             </div>
           </div>
         </section>
 
-        {/* --- SECTION 6: MEET THE TEAM --- */}
-        <section className="py-24 px-6 sm:px-12 relative z-10 border-t border-slate-200/50 dark:border-neutral-900/50 bg-slate-50/50 dark:bg-neutral-950/50">
-          <div className="max-w-6xl mx-auto">
+        {/* --- SECTION 6: MEET THE TEAM & CONTACT (CONSOLIDATED FOOTER) --- */}
+        <section id="contact" className="py-24 px-6 sm:px-12 relative z-10 border-t border-slate-200/50 dark:border-neutral-900/50 bg-slate-50/50 dark:bg-neutral-950/50">
+          <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto">
+
             <FadeIn>
               <div className="text-center mb-16">
                 <h2 className="text-3xl sm:text-5xl font-bold mb-4">Meet The <span className="text-emerald-600 dark:text-emerald-400">Architects.</span></h2>
@@ -810,6 +831,7 @@ export default function App() {
               </div>
             </FadeIn>
 
+            {/* Team Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {teamData.map((member, i) => (
                 <FadeIn key={i} delay={i * 0.1}>
@@ -828,71 +850,45 @@ export default function App() {
                 </FadeIn>
               ))}
             </div>
-          </div>
-        </section>
 
-        {/* --- SECTION 7: FOOTER & CONTACT --- */}
-        <footer className="pt-24 pb-12 px-6 sm:px-12 bg-white/30 dark:bg-neutral-950/50 backdrop-blur-xl relative z-10 border-t border-slate-200/50 dark:border-neutral-800/50">
-          <div className="max-w-6xl mx-auto">
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-16 mb-20 border-b border-slate-200/50 dark:border-neutral-800/50 pb-20">
-              <FadeIn direction="right">
-                <div>
-                  <h3 className="text-3xl font-bold mb-6 text-slate-900 dark:text-white">Ready to secure your perimeter?</h3>
-                  <p className="text-slate-600 dark:text-neutral-400 mb-8 max-w-md">
-                    Experience Neurometric Shield in action. Explore the interactive SOC dashboard or test the anomaly engine directly.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-                    <a href="/prototype" className="w-full">
-                      <div className="flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors shadow-lg shadow-blue-500/30">
-                        Live Prototype <ArrowRight className="ml-2 w-4 h-4" />
-                      </div>
-                    </a>
+            {/* Horizontal Contact Info */}
+            <FadeIn>
+              <div className="flex flex-wrap justify-center gap-8 lg:gap-16 mt-20 pt-12 border-t border-slate-200/50 dark:border-neutral-800/50">
+                <a href="https://github.com/Yashika-28/anomaly_detection" target="_blank" rel="noreferrer" className="flex items-center gap-4 text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors group">
+                  <div className="w-12 h-12 shrink-0 rounded-full bg-white/60 dark:bg-neutral-900/80 backdrop-blur-md flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors border border-slate-300/30 dark:border-neutral-700/30 shadow-sm">
+                    <Github className="w-5 h-5 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                   </div>
-                </div>
-              </FadeIn>
-
-              <FadeIn direction="left" delay={0.2}>
-                <div className="flex flex-col md:items-end justify-center">
-                  <div className="space-y-6 w-full md:w-auto">
-
-                    <a href="https://github.com/Yashika-28/anomaly_detection" target="_blank" rel="noreferrer" className="flex items-center gap-4 text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors group">
-                      <div className="w-12 h-12 shrink-0 rounded-full bg-slate-200/50 dark:bg-neutral-900/80 backdrop-blur-md flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors border border-slate-300/30 dark:border-neutral-700/30">
-                        <Github className="w-5 h-5 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white">Open Source</h4>
-                        <p className="text-sm">View repository on GitHub</p>
-                      </div>
-                    </a>
-
-                    <a href="mailto:contact@yourdomain.com" className="flex items-center gap-4 text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors group">
-                      <div className="w-12 h-12 shrink-0 rounded-full bg-slate-200/50 dark:bg-neutral-900/80 backdrop-blur-md flex items-center justify-center group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 transition-colors border border-slate-300/30 dark:border-neutral-700/30">
-                        <Mail className="w-5 h-5 group-hover:text-emerald-600 dark:group-hover:text-emerald-400" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white">Contact the Team</h4>
-                        <p className="text-sm">contact@neurometricshield.com</p>
-                      </div>
-                    </a>
-
-                    <a href="tel:+1234567890" className="flex items-center gap-4 text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors group">
-                      <div className="w-12 h-12 shrink-0 rounded-full bg-slate-200/50 dark:bg-neutral-900/80 backdrop-blur-md flex items-center justify-center group-hover:bg-purple-100 dark:group-hover:bg-purple-900/50 transition-colors border border-slate-300/30 dark:border-neutral-700/30">
-                        <Phone className="w-5 h-5 group-hover:text-purple-600 dark:group-hover:text-purple-400" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white">Direct Line</h4>
-                        <p className="text-sm">+1 (234) 567-890</p>
-                      </div>
-                    </a>
-
+                  <div className="text-left">
+                    <h4 className="font-bold text-slate-900 dark:text-white leading-tight">Open Source</h4>
+                    <p className="text-sm">View GitHub Repo</p>
                   </div>
-                </div>
-              </FadeIn>
-            </div>
+                </a>
 
-            <div className="flex flex-col md:flex-row justify-between items-center text-sm text-slate-500 dark:text-neutral-500">
-              <div className="flex items-center gap-2 mb-4 md:mb-0 font-bold">
+                <a href="mailto:contact@yourdomain.com" className="flex items-center gap-4 text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors group">
+                  <div className="w-12 h-12 shrink-0 rounded-full bg-white/60 dark:bg-neutral-900/80 backdrop-blur-md flex items-center justify-center group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 transition-colors border border-slate-300/30 dark:border-neutral-700/30 shadow-sm">
+                    <Mail className="w-5 h-5 group-hover:text-emerald-600 dark:group-hover:text-emerald-400" />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="font-bold text-slate-900 dark:text-white leading-tight">Contact Team</h4>
+                    <p className="text-sm">hello@neurometric.com</p>
+                  </div>
+                </a>
+
+                <a href="tel:+1234567890" className="flex items-center gap-4 text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors group">
+                  <div className="w-12 h-12 shrink-0 rounded-full bg-white/60 dark:bg-neutral-900/80 backdrop-blur-md flex items-center justify-center group-hover:bg-purple-100 dark:group-hover:bg-purple-900/50 transition-colors border border-slate-300/30 dark:border-neutral-700/30 shadow-sm">
+                    <Phone className="w-5 h-5 group-hover:text-purple-600 dark:group-hover:text-purple-400" />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="font-bold text-slate-900 dark:text-white leading-tight">Direct Line</h4>
+                    <p className="text-sm">+1 (234) 567-890</p>
+                  </div>
+                </a>
+              </div>
+            </FadeIn>
+
+            {/* Final Copyright Bar */}
+            <div className="mt-16 flex flex-col md:flex-row justify-between items-center text-sm text-slate-500 dark:text-neutral-500">
+              <div className="flex items-center gap-2 mb-4 md:mb-0 font-bold tracking-tight">
                 <ShieldCheck className="w-5 h-5 text-blue-500" />
                 Neurometric Shield
               </div>
@@ -900,8 +896,9 @@ export default function App() {
                 © {new Date().getFullYear()} Neurometric Shield UEBA. Created by Yashika & Team. All rights reserved.
               </p>
             </div>
+
           </div>
-        </footer>
+        </section>
 
       </div>
     </div>
