@@ -1,95 +1,71 @@
 "use client";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import {
-  Activity, Search, Calendar, Shield, ShieldCheck, MapPin,
+  Activity, Search, Calendar, Shield, ShieldCheck,
   Monitor, MousePointer2, Network, AlertTriangle,
   CheckCircle, X, Clock, Eye, Crosshair,
   Lock, Zap, Terminal, RefreshCw, Sun, Moon,
   Plus, Minus, LocateFixed, ArrowRight, CalendarDays,
-  Code, ClipboardPaste, Fingerprint, Globe,
+  Code, ClipboardPaste, Globe,
   ArrowDown, ArrowUp
 } from 'lucide-react';
 
-// --- DYNAMIC MOCK DATA (BROWSER-NATIVE TELEMETRY) ---
-const generateMockData = () => {
-  const now = new Date();
-  const minusMinutes = (m) => new Date(now.getTime() - m * 60000).toISOString();
-  const minusDays = (d) => new Date(now.getTime() - d * 86400000).toISOString();
-
-  return [
-    {
-      id: 'ses_8f92a1',
-      timestamp: minusMinutes(12),
-      user: { name: 'Sarah Jenkins', role: 'Finance Dir', ip: '192.168.1.45' },
-      status: 'Live',
-      verdict: 'Safe',
-      geo: { lat: 34.0522, lng: -118.2437, city: 'Los Angeles', country: 'USA' },
-      modules: {
-        context: { os: 'macOS 14.2', res: '2560x1600', devToolsOpen: false, match: true },
-        hci: { velocity: '342 px/s', trajectory: 'Curved (Human)', pasteDetected: false, human: true },
-        network: { ipType: 'Residential ISP', proxy: 'None', protocol: 'TLS 1.3 / HTTP2', download: '14.5 MB', upload: '1.2 MB', risk: 'Low' }
-      }
-    },
-    {
-      id: 'ses_b3c99e',
-      timestamp: minusMinutes(45),
-      user: { name: 'J. Doe (Service Acct)', role: 'System API', ip: '45.33.22.11' },
-      status: 'Locked',
-      verdict: 'Critical',
-      geo: { lat: 55.7558, lng: 37.6173, city: 'Moscow', country: 'RU' },
-      modules: {
-        context: { os: 'Linux (X11)', res: '1920x1080', devToolsOpen: true, match: false },
-        hci: { velocity: '9400 px/s', trajectory: 'Perfectly Linear', pasteDetected: true, human: false },
-        network: { ipType: 'Datacenter / Cloud', proxy: 'VPN Detected', protocol: 'TLS 1.2', download: '5.1 MB', upload: '840.5 MB', risk: 'High' } // Massive Upload = Exfiltration
-      }
-    },
-    {
-      id: 'ses_77a4f2',
-      timestamp: minusMinutes(150),
-      user: { name: 'Marcus Chen', role: 'DevOps', ip: '10.0.0.211' },
-      status: 'Live',
-      verdict: 'Warning',
-      geo: { lat: 51.5074, lng: -0.1278, city: 'London', country: 'UK' },
-      modules: {
-        context: { os: 'Windows 11', res: '1920x1080', devToolsOpen: true, match: true },
-        hci: { velocity: '890 px/s', trajectory: 'Curved (Human)', pasteDetected: true, human: true },
-        network: { ipType: 'Corporate NAT', proxy: 'None', protocol: 'TLS 1.3 / HTTP3', download: '2.1 GB', upload: '45.0 MB', risk: 'Medium' }
-      }
-    },
-    {
-      id: 'ses_11d88a',
-      timestamp: minusDays(3),
-      user: { name: 'Elena Rodriguez', role: 'HR Manager', ip: '192.168.1.104' },
-      status: 'Locked',
-      verdict: 'Safe',
-      geo: { lat: 40.7128, lng: -74.0060, city: 'New York', country: 'USA' },
-      modules: {
-        context: { os: 'Windows 10', res: '1366x768', devToolsOpen: false, match: true },
-        hci: { velocity: '210 px/s', trajectory: 'Hesitant / Curved', pasteDetected: false, human: true },
-        network: { ipType: 'Residential ISP', proxy: 'None', protocol: 'TLS 1.3', download: '5.4 MB', upload: '0.8 MB', risk: 'Low' }
-      }
-    },
-    {
-      id: 'ses_99e1b5',
-      timestamp: minusDays(14),
-      user: { name: 'Unknown Device', role: 'Guest', ip: '185.15.22.99' },
-      status: 'Live',
-      verdict: 'Critical',
-      geo: { lat: 39.9042, lng: 116.4074, city: 'Beijing', country: 'CN' },
-      modules: {
-        context: { os: 'macOS 10.15 (Spoofed)', res: '800x600', devToolsOpen: false, match: false },
-        hci: { velocity: 'Instant (0ms)', trajectory: 'Teleportation', pasteDetected: true, human: false },
-        network: { ipType: 'Tor Exit Node', proxy: 'Anonymizer', protocol: 'TLS 1.2', download: '5.2 MB', upload: '115.3 MB', risk: 'High' } // High Upload = DNS Tunneling
-      }
-    }
-  ];
+// --- TYPES ---
+export type GeoLocation = {
+  lat: number;
+  lng: number;
+  city: string;
+  country: string;
 };
 
-const MOCK_SESSIONS = generateMockData();
+export type SessionModules = {
+  context: {
+    os: string;
+    res: string;
+    devToolsOpen: boolean;
+    match: boolean;
+  };
+  hci: {
+    velocity: string;
+    trajectory: string;
+    pasteDetected: boolean;
+    human: boolean;
+  };
+  network: {
+    ipType: string;
+    proxy: string;
+    protocol: string;
+    download: string;
+    upload: string;
+    risk: string;
+  };
+};
+
+export type Session = {
+  id: string;
+  timestamp: string;
+  user: {
+    name: string;
+    role: string;
+    ip: string;
+  };
+  status: string;
+  verdict: 'Safe' | 'Warning' | 'Critical';
+  geo: GeoLocation;
+  modules: SessionModules;
+};
+
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    L: any;
+  }
+}
 
 // --- COMPONENTS ---
 
-const StatusBadge = ({ verdict }) => {
+const StatusBadge = ({ verdict }: { verdict: 'Safe' | 'Warning' | 'Critical' }) => {
   const styles = {
     Safe: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
     Warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
@@ -110,11 +86,18 @@ const StatusBadge = ({ verdict }) => {
   );
 };
 
+interface LiveMapProps extends GeoLocation {
+  verdict: 'Safe' | 'Warning' | 'Critical';
+  isDarkMode: boolean;
+}
+
 // Real Live Map Component
-const LiveMap = ({ lat, lng, city, country, verdict, isDarkMode }) => {
-  const mapRef = useRef(null);
-  const mapInstance = useRef(null);
-  const tileLayerRef = useRef(null);
+const LiveMap = ({ lat, lng, city, country, verdict, isDarkMode }: LiveMapProps) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapInstance = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tileLayerRef = useRef<any>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -210,8 +193,8 @@ const LiveMap = ({ lat, lng, city, country, verdict, isDarkMode }) => {
 // --- MAIN APPLICATION ---
 
 export default function App() {
-  const [sessions, setSessions] = useState([]);
-  const [selectedSession, setSelectedSession] = useState(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [search, setSearch] = useState('');
   const [filterRisk, setFilterRisk] = useState('All');
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -221,10 +204,10 @@ export default function App() {
   useEffect(() => {
     const socket = new WebSocket('ws://localhost:8000/ws/soc');
 
-    socket.onmessage = (event) => {
+    socket.onmessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
 
-      const newSession = {
+      const newSession: Session = {
         id: `${data.username}-${data.time}`,
         timestamp: `${new Date().toISOString().split('T')[0]}T${data.time}`,
         user: {
@@ -283,6 +266,7 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -294,7 +278,7 @@ export default function App() {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
-  const handleRowClick = (session) => {
+  const handleRowClick = (session: Session) => {
     setSelectedSession(session);
     setIsPanelOpen(true);
   };
@@ -304,7 +288,7 @@ export default function App() {
       const startObj = new Date(customStart);
       const endObj = new Date(customEnd);
 
-      const formatOptions = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+      const formatOptions: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
       const startStr = startObj.toLocaleDateString(undefined, formatOptions);
       const endStr = endObj.toLocaleDateString(undefined, formatOptions);
 
@@ -348,10 +332,10 @@ export default function App() {
         {/* --- 1. GLOBAL CONTROLS & HEADER LAYER --- */}
         <header className="h-16 border-b border-slate-200 dark:border-slate-800/80 bg-white/80 dark:bg-[#0B0F19]/80 backdrop-blur-md px-6 flex items-center justify-between z-20 sticky top-0 transition-colors duration-300">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 font-bold text-xl tracking-tight z-10 shrink-0">
+            <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tight z-10 shrink-0 hover:opacity-80 transition-opacity">
               <ShieldCheck className="w-6 h-6 text-blue-500" />
-              <span className="text-slate-900 dark:text-white">Neurometric<span className="text-blue-500">Shield</span></span>
-            </div>
+              <span>Neurometric<span className="text-blue-500">Shield</span></span>
+            </Link>
           </div>
 
           <div className="flex items-center gap-4">
@@ -487,7 +471,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                  {filteredSessions.map((session) => (
+                  {filteredSessions.map((session: Session) => (
                     <tr
                       key={session.id}
                       onClick={() => handleRowClick(session)}
@@ -540,7 +524,7 @@ export default function App() {
                   ))}
                   {filteredSessions.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="p-16 text-center">
+                      <td colSpan={5} className="p-16 text-center">
                         <div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
                           <Search className="w-10 h-10 mb-3 opacity-20" />
                           <p className="text-base font-medium">No telemetry matches your filters.</p>
