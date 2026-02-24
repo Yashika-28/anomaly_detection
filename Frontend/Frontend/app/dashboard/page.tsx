@@ -192,8 +192,89 @@ const LiveMap = ({ lat, lng, city, country, verdict, isDarkMode }: LiveMapProps)
 
 // --- MAIN APPLICATION ---
 
+const SAMPLE_SESSIONS: Session[] = [
+  {
+    id: "abnormality-001",
+    timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
+    user: {
+      name: "System Administrator (Simulated)",
+      role: "Superuser / Root",
+      ip: "10.0.0.84",
+    },
+    status: "Locked",
+    verdict: "Critical",
+    geo: {
+      lat: 34.0522,
+      lng: -118.2437,
+      city: "Los Angeles",
+      country: "USA"
+    },
+    modules: {
+      context: {
+        os: "Kali Linux / Headless",
+        res: "1920x1080",
+        devToolsOpen: true,
+        match: false
+      },
+      hci: {
+        velocity: "5200 px/s",
+        trajectory: "Inhuman / Instant",
+        pasteDetected: true,
+        human: false
+      },
+      network: {
+        ipType: "Data Center (AWS)",
+        proxy: "Shadowsocks VPN",
+        protocol: "SSH-Tunnel",
+        download: "2.4 GB",
+        upload: "1.8 GB",
+        risk: "High"
+      }
+    }
+  },
+  {
+    id: "normal-002",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+    user: {
+      name: "Marcus Aurelius",
+      role: "Cloud Architect",
+      ip: "192.168.1.15",
+    },
+    status: "Locked",
+    verdict: "Safe",
+    geo: {
+      lat: 48.8566,
+      lng: 2.3522,
+      city: "Paris",
+      country: "France"
+    },
+    modules: {
+      context: {
+        os: "macOS Sonoma",
+        res: "2880x1800",
+        devToolsOpen: false,
+        match: true
+      },
+      hci: {
+        velocity: "840 px/s",
+        trajectory: "Natural Human",
+        pasteDetected: false,
+        human: true
+      },
+      network: {
+        ipType: "Residential (Orange SA)",
+        proxy: "None",
+        protocol: "HTTPS/3",
+        download: "128 MB",
+        upload: "14 MB",
+        risk: "Low"
+      }
+    }
+  }
+];
+
 export default function App() {
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<Session[]>(SAMPLE_SESSIONS);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [search, setSearch] = useState('');
   const [filterRisk, setFilterRisk] = useState('All');
