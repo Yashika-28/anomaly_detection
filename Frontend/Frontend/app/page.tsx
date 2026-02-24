@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import {
   Keyboard,
   MousePointer2,
@@ -808,9 +809,9 @@ export default function App() {
                           Test the unsupervised learning models safely. Because logins from your current device will always register as "Normal", use this portal to simulate fake sign-ins. Select mock users, inject custom parameters (Time, Location, IP, OS), and watch the AI flag anomalies instantly.
                         </p>
                         <div className="flex justify-end w-full">
-                          <a href="/prototype" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-blue-500/30 w-full sm:w-auto">
+                          <Link href="/prototype" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-blue-500/30 w-full sm:w-auto">
                             Launch Simulator
-                          </a>
+                          </Link>
                         </div>
                       </div>
                     </div>
@@ -830,9 +831,9 @@ export default function App() {
                           The command center for Security Operations. The exact same data injected in the prototype is continuously streamed here for real-time threat hunting. View live telemetry streams, filter and query network events, and plot graphs of behavioral deviations.
                         </p>
                         <div className="flex justify-end w-full">
-                          <a href="/dashboard" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-purple-500/30 w-full sm:w-auto">
+                          <Link href="/dashboard" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-purple-500/30 w-full sm:w-auto">
                             Enter Dashboard
-                          </a>
+                          </Link>
                         </div>
                       </div>
                     </div>

@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import {
   Keyboard,
   MousePointer2,
@@ -829,9 +830,9 @@ export default function App() {
                           The command center for Security Operations. The exact same data injected in the prototype is continuously streamed here for real-time threat hunting. View live telemetry streams, filter and query network events, and plot graphs of behavioral deviations.
                         </p>
                         <div className="flex justify-end w-full">
-                          <a href="/dashboard" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-purple-500/30 w-full sm:w-auto">
+<Link href="/dashboard" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-purple-500/30 w-full sm:w-auto">
                             Enter Dashboard
-                          </a>
+                          </Link>
                         </div>
                       </div>
                     </div>
