@@ -8,7 +8,7 @@ import {
   Lock, Zap, Terminal, RefreshCw, Sun, Moon,
   Plus, Minus, LocateFixed, ArrowRight, CalendarDays,
   Code, ClipboardPaste, Globe,
-  ArrowDown, ArrowUp
+  ArrowDown, ArrowUp, BarChart3, Users
 } from 'lucide-react';
 
 // --- TYPES ---
@@ -49,6 +49,7 @@ export type Session = {
     name: string;
     role: string;
     ip: string;
+    attempts?: number;
   };
   status: string;
   verdict: 'Safe' | 'Warning' | 'Critical';
@@ -168,16 +169,16 @@ const LiveMap = ({ lat, lng, city, country, verdict, isDarkMode }: LiveMapProps)
       <div ref={mapRef} className="absolute inset-0 z-0"></div>
 
       <div className="absolute top-2 right-2 z-[400] flex flex-col gap-1 shadow-lg">
-        <button onClick={handleZoomIn} className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-1.5 rounded-t text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors">
+        <button suppressHydrationWarning onClick={handleZoomIn} className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-1.5 rounded-t text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors">
           <Plus className="w-4 h-4" />
         </button>
-        <button onClick={handleZoomOut} className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-1.5 rounded-b text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 border-t-0 transition-colors">
+        <button suppressHydrationWarning onClick={handleZoomOut} className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-1.5 rounded-b text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 border-t-0 transition-colors">
           <Minus className="w-4 h-4" />
         </button>
       </div>
 
       <div className="absolute bottom-2 right-2 z-[400] shadow-lg">
-        <button onClick={handleRecenter} className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-1.5 rounded text-blue-600 dark:text-blue-400 border border-slate-200 dark:border-slate-700 transition-colors" title="Recenter Location">
+        <button suppressHydrationWarning onClick={handleRecenter} className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-1.5 rounded text-blue-600 dark:text-blue-400 border border-slate-200 dark:border-slate-700 transition-colors" title="Recenter Location">
           <LocateFixed className="w-4 h-4" />
         </button>
       </div>
@@ -195,7 +196,7 @@ const LiveMap = ({ lat, lng, city, country, verdict, isDarkMode }: LiveMapProps)
 const SAMPLE_SESSIONS: Session[] = [
   {
     id: "abnormality-001",
-    timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
+    timestamp: "2026-02-26T19:45:00.000Z",
     user: {
       name: "System Administrator (Simulated)",
       role: "Superuser / Root",
@@ -234,7 +235,7 @@ const SAMPLE_SESSIONS: Session[] = [
   },
   {
     id: "normal-002",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+    timestamp: "2026-02-26T18:00:00.000Z",
     user: {
       name: "Marcus Aurelius",
       role: "Cloud Architect",
@@ -280,68 +281,161 @@ export default function App() {
   const [filterRisk, setFilterRisk] = useState('All');
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [wsConnected, setWsConnected] = useState(false);
 
   // WebSocket Integration
   useEffect(() => {
-    const socket = new WebSocket('ws://localhost:8000/ws/soc');
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket('ws://localhost:8000/ws/soc');
+      socket.onopen = () => setWsConnected(true);
+      socket.onclose = () => setWsConnected(false);
+      socket.onerror = () => setWsConnected(false);
 
-    socket.onmessage = (event: MessageEvent) => {
-      const data = JSON.parse(event.data);
+      socket.onmessage = (event: MessageEvent) => {
+        const data = JSON.parse(event.data);
 
-      const newSession: Session = {
-        id: `${data.username}-${data.time}`,
-        timestamp: `${new Date().toISOString().split('T')[0]}T${data.time}`,
-        user: {
-          name: data.username || "Unknown",
-          role: data.type === "FINAL_EVALUATION" ? "User" : "Streaming...",
-          ip: data.ip_address
-        },
-        status: data.type === "LIVE_UPDATE" ? "Live" : "Locked",
-        verdict: data.risk_status.includes("SAFE") ? "Safe" :
-          data.risk_status.includes("ANOMALY") ? "Critical" : "Warning",
-        geo: {
-          lat: data.lat || 0,
-          lng: data.lon || 0,
-          city: "Detected",
-          country: "Live"
-        },
-        modules: {
-          context: {
-            os: data.os || "Unknown",
-            res: data.resolution || "Unknown",
-            devToolsOpen: data.tab_switch_count > 2,
-            match: true
+        const newSession: Session = {
+          id: `live-${data.username}`,
+          timestamp: new Date().toISOString(),
+          user: {
+            name: data.username || "Unknown",
+            role: data.type === "FINAL_EVALUATION" ? "User" : "Streaming...",
+            ip: data.ip_address
           },
-          hci: {
-            velocity: `${data.mouse_velocity || 0} px/s`,
-            trajectory: data.mouse_velocity > 2000 ? "Erratic" : "Human",
-            pasteDetected: data.avg_keystroke_delay < 0.05,
-            human: !data.risk_status.includes("Bot")
+          status: data.type === "LIVE_UPDATE" ? "Live" : "Locked",
+          verdict: data.risk_status.includes("SAFE") ? "Safe" :
+            data.risk_status.includes("ANOMALY") ? "Critical" : "Warning",
+          geo: {
+            lat: data.lat || 0,
+            lng: data.lon || 0,
+            city: "Detected",
+            country: "Live"
           },
-          network: {
-            ipType: "Residential",
-            proxy: "None",
-            protocol: data.protocol || "WSS",
-            download: "0 MB",
-            upload: `${data.bytes_sent || 0} bytes`,
-            risk: data.risk_status.includes("ANOMALY") ? "High" : "Low"
+          modules: {
+            context: {
+              os: data.os || "Unknown",
+              res: data.resolution || "Unknown",
+              devToolsOpen: data.tab_switch_count > 2,
+              match: true
+            },
+            hci: {
+              velocity: `${data.mouse_velocity || 0} px/s`,
+              trajectory: data.mouse_velocity > 2000 ? "Erratic" : "Human",
+              pasteDetected: data.avg_keystroke_delay < 0.05,
+              human: !data.risk_status.includes("Bot")
+            },
+            network: {
+              ipType: "Residential",
+              proxy: "None",
+              protocol: data.protocol || "WSS",
+              download: "0 MB",
+              upload: `${data.bytes_sent || 0} bytes`,
+              risk: data.risk_status.includes("ANOMALY") ? "High" : "Low"
+            }
           }
-        }
-      };
+        };
 
-      setSessions((prev) => {
-        // Find if session already exists for this user/IP and update it, else append
-        const existingIndex = prev.findIndex(s => s.user.name === newSession.user.name && s.user.ip === newSession.user.ip);
-        if (existingIndex !== -1) {
-          const updated = [...prev];
-          updated[existingIndex] = newSession;
-          return updated;
+        setSessions((prev) => {
+          const existingIndex = prev.findIndex(s => s.user.name === newSession.user.name);
+          if (existingIndex !== -1) {
+            const updated = [...prev];
+            updated[existingIndex] = newSession;
+            return updated;
+          }
+          return [newSession, ...prev];
+        });
+      };
+    } catch { setWsConnected(false); }
+
+    return () => { try { socket?.close(); } catch { } };
+  }, []);
+
+  // Poll Mock DB for Prototype Logins
+  useEffect(() => {
+    const pollDb = async () => {
+      try {
+        const res = await fetch('/api/db', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'GET_SESSIONS' })
+        });
+        const data = await res.json();
+
+        if (data.success && data.sessions) {
+          setSessions(prev => {
+            const updated = [...prev];
+            let changed = false;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data.sessions.forEach((s: any) => {
+              const isAnomaly = s.telemetry?.risk_status?.includes("ANOMALY") || s.attempts > 3;
+              const verdict = s.telemetry?.risk_status?.includes("SAFE") && s.attempts <= 3 ? "Safe" :
+                isAnomaly ? "Critical" : "Warning";
+
+              const newSession: Session = {
+                id: s.id,
+                timestamp: s.timestamp,
+                user: {
+                  name: s.username,
+                  role: "Prototype User",
+                  ip: s.telemetry?.ip_address || "Unknown",
+                  attempts: s.attempts
+                },
+                status: "Locked",
+                verdict: verdict,
+                geo: {
+                  lat: s.telemetry?.lat || 0,
+                  lng: s.telemetry?.lon || 0,
+                  city: "Detected",
+                  country: "Live"
+                },
+                modules: {
+                  context: {
+                    os: s.telemetry?.os || "Unknown",
+                    res: s.telemetry?.resolution || "Unknown",
+                    devToolsOpen: s.telemetry?.tab_switch_count > 2 || false,
+                    match: true
+                  },
+                  hci: {
+                    velocity: `${s.telemetry?.mouse_velocity || 0} px/s`,
+                    trajectory: (s.telemetry?.mouse_velocity || 0) > 2000 ? "Erratic" : "Human",
+                    pasteDetected: (s.telemetry?.avg_keystroke_delay || 1) < 0.05,
+                    human: !(s.telemetry?.risk_status?.includes("Bot"))
+                  },
+                  network: {
+                    ipType: "Residential",
+                    proxy: "None",
+                    protocol: s.telemetry?.protocol || "HTTPS",
+                    download: "0 MB",
+                    upload: `${s.telemetry?.bytes_sent || 0} bytes`,
+                    risk: verdict === "Critical" ? "High" : "Low"
+                  }
+                }
+              };
+
+              const existingIndex = updated.findIndex(u => u.user.name === newSession.user.name);
+              if (existingIndex !== -1) {
+                // Don't overwrite a Live WebSocket session with a DB poll result
+                if (updated[existingIndex].status === 'Live') return;
+                updated[existingIndex] = newSession;
+              } else {
+                updated.unshift(newSession);
+              }
+              changed = true;
+            });
+            return changed ? updated : prev;
+          });
         }
-        return [newSession, ...prev];
-      });
+      } catch (err) {
+        // ignore
+      }
     };
 
-    return () => socket.close();
+    // Poll every 3 seconds
+    const interval = setInterval(pollDb, 3000);
+    pollDb(); // initial call
+    return () => clearInterval(interval);
   }, []);
 
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -379,7 +473,7 @@ export default function App() {
   };
 
   const filteredSessions = useMemo(() => {
-    return sessions.filter(s => {
+    const filtered = sessions.filter((s: Session) => {
       const matchesSearch = s.user.name.toLowerCase().includes(search.toLowerCase()) ||
         s.user.ip.includes(search);
       const matchesRisk = filterRisk === 'All' || s.verdict === filterRisk;
@@ -404,7 +498,72 @@ export default function App() {
 
       return matchesSearch && matchesRisk && matchesTime;
     });
+
+    // Deduplicate by username — keep first occurrence (latest) per user
+    const seen = new Set<string>();
+    const deduped = filtered.filter((s: Session) => {
+      if (seen.has(s.user.name)) return false;
+      seen.add(s.user.name);
+      return true;
+    });
+
+    // Sort by timestamp descending so newest sessions appear first
+    deduped.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return deduped;
   }, [search, filterRisk, timeRange, customStart, customEnd, sessions]);
+
+  // --- ANALYTICS COMPUTED DATA ---
+  const analytics = useMemo(() => {
+    const verdicts = { Safe: 0, Warning: 0, Critical: 0 };
+    const ipGroups: Record<string, { count: number; users: string[]; worstVerdict: string }> = {};
+    const userTargets: Record<string, { attempts: number; verdict: string }> = {};
+    const threatTypes = { bot: 0, vpnProxy: 0, devTools: 0, pasteInput: 0, highData: 0, bruteForce: 0 };
+    const locationGroups: Record<string, { count: number; city: string; country: string; verdicts: string[] }> = {};
+
+    filteredSessions.forEach(s => {
+      verdicts[s.verdict]++;
+
+      // IP grouping
+      const ip = s.user.ip;
+      if (!ipGroups[ip]) ipGroups[ip] = { count: 0, users: [], worstVerdict: 'Safe' };
+      ipGroups[ip].count++;
+      if (!ipGroups[ip].users.includes(s.user.name)) ipGroups[ip].users.push(s.user.name);
+      if (s.verdict === 'Critical') ipGroups[ip].worstVerdict = 'Critical';
+      else if (s.verdict === 'Warning' && ipGroups[ip].worstVerdict !== 'Critical') ipGroups[ip].worstVerdict = 'Warning';
+
+      // User targeting
+      if (!userTargets[s.user.name]) userTargets[s.user.name] = { attempts: 0, verdict: 'Safe' };
+      userTargets[s.user.name].attempts += (s.user.attempts || 1);
+      if (s.verdict === 'Critical') userTargets[s.user.name].verdict = 'Critical';
+      else if (s.verdict === 'Warning' && userTargets[s.user.name].verdict !== 'Critical') userTargets[s.user.name].verdict = 'Warning';
+
+      // Threat types
+      if (!s.modules.hci.human) threatTypes.bot++;
+      if (s.modules.network.proxy !== 'None') threatTypes.vpnProxy++;
+      if (s.modules.context.devToolsOpen) threatTypes.devTools++;
+      if (s.modules.hci.pasteDetected) threatTypes.pasteInput++;
+      if (s.modules.network.risk === 'High') threatTypes.highData++;
+      if ((s.user.attempts || 0) > 3) threatTypes.bruteForce++;
+
+      // Location grouping
+      const locKey = `${s.geo.city}-${s.geo.country}`;
+      if (!locationGroups[locKey]) locationGroups[locKey] = { count: 0, city: s.geo.city, country: s.geo.country, verdicts: [] };
+      locationGroups[locKey].count++;
+      locationGroups[locKey].verdicts.push(s.verdict);
+    });
+
+    const uniqueIps = Object.keys(ipGroups).length;
+    const bruteForceUsers = Object.values(userTargets).filter(u => u.attempts > 3).length;
+    const totalSessions = filteredSessions.length;
+    const criticalCount = verdicts.Critical;
+
+    // Sort IP groups by count desc
+    const sortedIps = Object.entries(ipGroups).sort((a, b) => b[1].count - a[1].count).slice(0, 6);
+    const sortedUsers = Object.entries(userTargets).sort((a, b) => b[1].attempts - a[1].attempts).slice(0, 6);
+    const sortedLocations = Object.entries(locationGroups).sort((a, b) => b[1].count - a[1].count).slice(0, 6);
+
+    return { verdicts, ipGroups, userTargets, threatTypes, uniqueIps, bruteForceUsers, totalSessions, criticalCount, sortedIps, sortedUsers, sortedLocations, locationGroups };
+  }, [filteredSessions]);
 
   return (
     <div className={`${isDarkMode ? 'dark' : ''}`}>
@@ -420,12 +579,12 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-full transition-colors duration-300">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors duration-300 ${wsConnected ? 'bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800' : 'bg-rose-100 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/50'}`}>
               <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                {wsConnected && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
+                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${wsConnected ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
               </span>
-              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">CONNECTED</span>
+              <span className={`text-xs font-mono font-bold ${wsConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{wsConnected ? 'CONNECTED' : 'DISCONNECTED'}</span>
             </div>
 
             <button
@@ -540,12 +699,199 @@ export default function App() {
               </div>
             </div>
 
+            {/* ═══ KPI SUMMARY CARDS ═══ */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {[
+                { label: 'Total Sessions', value: analytics.totalSessions, icon: <Activity className="w-5 h-5" />, color: 'text-blue-500', bg: 'bg-blue-500/10 border-blue-500/20' },
+                { label: 'Critical Alerts', value: analytics.criticalCount, icon: <Shield className="w-5 h-5" />, color: 'text-rose-500', bg: 'bg-rose-500/10 border-rose-500/20' },
+                { label: 'Unique IPs', value: analytics.uniqueIps, icon: <Globe className="w-5 h-5" />, color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20' },
+                { label: 'Brute-force Users', value: analytics.bruteForceUsers, icon: <AlertTriangle className="w-5 h-5" />, color: 'text-purple-500', bg: 'bg-purple-500/10 border-purple-500/20' },
+              ].map((kpi, i) => (
+                <div key={i} className={`p-4 rounded-xl border ${kpi.bg} bg-white dark:bg-[#111827] transition-colors`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`${kpi.color}`}>{kpi.icon}</span>
+                    <span className="text-2xl font-bold text-slate-900 dark:text-white">{kpi.value}</span>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{kpi.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* ═══ ANALYTICS CHARTS ROW ═══ */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+              {/* --- Verdict Distribution Donut --- */}
+              <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl p-5 transition-colors">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-blue-500" /> Verdict Distribution
+                </h3>
+                <div className="flex items-center justify-center">
+                  {(() => {
+                    const { Safe, Warning, Critical } = analytics.verdicts;
+                    const total = Safe + Warning + Critical || 1;
+                    const safeAngle = (Safe / total) * 360;
+                    const warnAngle = (Warning / total) * 360;
+                    const critAngle = (Critical / total) * 360;
+
+                    const polarToCart = (cx: number, cy: number, r: number, deg: number) => {
+                      const rad = (deg - 90) * Math.PI / 180;
+                      return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+                    };
+
+                    const arc = (cx: number, cy: number, r: number, start: number, end: number) => {
+                      if (end - start >= 360) end = start + 359.99;
+                      const s = polarToCart(cx, cy, r, start);
+                      const e = polarToCart(cx, cy, r, end);
+                      const large = end - start > 180 ? 1 : 0;
+                      return `M ${cx} ${cy} L ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y} Z`;
+                    };
+
+                    let offset = 0;
+                    const slices = [
+                      { val: Safe, color: '#10b981', label: 'Safe' },
+                      { val: Warning, color: '#f59e0b', label: 'Warning' },
+                      { val: Critical, color: '#f43f5e', label: 'Critical' },
+                    ].filter(s => s.val > 0);
+
+                    return (
+                      <div className="flex items-center gap-6">
+                        <svg viewBox="0 0 120 120" className="w-28 h-28">
+                          {slices.map((sl, i) => {
+                            const angle = (sl.val / total) * 360;
+                            const path = arc(60, 60, 50, offset, offset + angle);
+                            offset += angle;
+                            return <path key={i} d={path} fill={sl.color} opacity={0.85} />;
+                          })}
+                          <circle cx="60" cy="60" r="28" className="fill-white dark:fill-[#111827]" />
+                          <text x="60" y="58" textAnchor="middle" className="fill-slate-900 dark:fill-white text-lg font-bold" fontSize="18">{total}</text>
+                          <text x="60" y="72" textAnchor="middle" className="fill-slate-500" fontSize="8">total</text>
+                        </svg>
+                        <div className="space-y-2">
+                          {slices.map((sl, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: sl.color }}></div>
+                              <span className="text-xs text-slate-600 dark:text-slate-400">{sl.label}: <span className="font-bold text-slate-900 dark:text-white">{sl.val}</span></span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* --- IP Threat Grouping --- */}
+              <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl p-5 transition-colors">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-amber-500" /> Sessions by IP Address
+                </h3>
+                <div className="space-y-2.5">
+                  {analytics.sortedIps.length === 0 && <p className="text-xs text-slate-500">No data</p>}
+                  {analytics.sortedIps.map(([ip, data], i) => {
+                    const maxCount = analytics.sortedIps[0]?.[1]?.count || 1;
+                    const pct = (data.count / maxCount) * 100;
+                    const barColor = data.worstVerdict === 'Critical' ? 'bg-rose-500' : data.worstVerdict === 'Warning' ? 'bg-amber-500' : 'bg-emerald-500';
+                    return (
+                      <div key={i}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="font-mono text-slate-700 dark:text-slate-300 truncate max-w-[60%]">{ip}</span>
+                          <span className="text-slate-500">{data.count} session{data.count > 1 ? 's' : ''} • {data.users.length} user{data.users.length > 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* --- Top Targeted Users --- */}
+              <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl p-5 transition-colors">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-purple-500" /> Top Targeted Users
+                </h3>
+                <div className="space-y-2.5">
+                  {analytics.sortedUsers.length === 0 && <p className="text-xs text-slate-500">No data</p>}
+                  {analytics.sortedUsers.map(([name, data], i) => {
+                    const maxAttempts = analytics.sortedUsers[0]?.[1]?.attempts || 1;
+                    const pct = (data.attempts / maxAttempts) * 100;
+                    const barColor = data.verdict === 'Critical' ? 'bg-rose-500' : data.verdict === 'Warning' ? 'bg-amber-500' : 'bg-emerald-500';
+                    return (
+                      <div key={i}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-slate-700 dark:text-slate-300 truncate max-w-[60%]">{name}</span>
+                          <span className="text-slate-500 font-mono">{data.attempts} attempts</span>
+                        </div>
+                        <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* ═══ THREAT BREAKDOWN + LOCATION ROW ═══ */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+              {/* Threat Type Breakdown */}
+              <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl p-5 transition-colors">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-rose-500" /> Threat Type Breakdown
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Bot / Script', count: analytics.threatTypes.bot, color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' },
+                    { label: 'VPN / Proxy', count: analytics.threatTypes.vpnProxy, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
+                    { label: 'DevTools Open', count: analytics.threatTypes.devTools, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
+                    { label: 'Paste Input', count: analytics.threatTypes.pasteInput, color: 'text-purple-500 bg-purple-500/10 border-purple-500/20' },
+                    { label: 'High Data Tx', count: analytics.threatTypes.highData, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
+                    { label: 'Brute Force', count: analytics.threatTypes.bruteForce, color: 'text-pink-500 bg-pink-500/10 border-pink-500/20' },
+                  ].map((t, i) => (
+                    <div key={i} className={`p-3 rounded-lg border ${t.color} text-center`}>
+                      <div className="text-xl font-bold">{t.count}</div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider mt-1 opacity-80">{t.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Location Clustering */}
+              <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl p-5 transition-colors">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Crosshair className="w-4 h-4 text-cyan-500" /> Login Clusters by Location
+                </h3>
+                <div className="space-y-2">
+                  {analytics.sortedLocations.length === 0 && <p className="text-xs text-slate-500">No data</p>}
+                  {analytics.sortedLocations.map(([key, data], i) => {
+                    const hasCritical = data.verdicts.includes('Critical');
+                    const hasWarning = data.verdicts.includes('Warning');
+                    return (
+                      <div key={i} className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${hasCritical ? 'bg-rose-500/5 border-rose-500/20' : hasWarning ? 'bg-amber-500/5 border-amber-500/20' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                        }`}>
+                        <div className="flex items-center gap-2">
+                          <Crosshair className={`w-3.5 h-3.5 ${hasCritical ? 'text-rose-500' : hasWarning ? 'text-amber-500' : 'text-emerald-500'}`} />
+                          <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{data.city}, {data.country}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-slate-500">{data.count} session{data.count > 1 ? 's' : ''}</span>
+                          {hasCritical && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xl dark:shadow-2xl transition-colors duration-300">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-100 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold transition-colors duration-300">
                     <th className="p-4 pl-6">Timestamp</th>
                     <th className="p-4">Identity Summary</th>
+                    <th className="p-4">Attempts</th>
                     <th className="p-4">Session Status</th>
                     <th className="p-4">Unified AI Verdict</th>
                     <th className="p-4 text-right pr-6">Action</th>
@@ -582,6 +928,17 @@ export default function App() {
                         </div>
                       </td>
                       <td className="p-4">
+                        {(() => {
+                          const attempts = session.user.attempts || 1;
+                          const color = attempts > 5 ? 'text-rose-500 bg-rose-500/10 border-rose-500/20 animate-pulse' : attempts > 3 ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' : 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+                          return (
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${color}`}>
+                              {attempts}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="p-4">
                         {session.status === 'Live' ? (
                           <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/10 w-max px-2 py-1 rounded border border-blue-200 dark:border-blue-500/20">
                             <Activity className="w-3.5 h-3.5" /> Live Stream
@@ -596,7 +953,7 @@ export default function App() {
                         <StatusBadge verdict={session.verdict} />
                       </td>
                       <td className="p-4 text-right pr-6">
-                        <button className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 p-2 rounded-lg flex items-center gap-2 ml-auto text-sm border border-slate-200 dark:border-slate-700 shadow-sm transition-colors">
+                        <button suppressHydrationWarning className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 p-2 rounded-lg flex items-center gap-2 ml-auto text-sm border border-slate-200 dark:border-slate-700 shadow-sm transition-colors">
                           <Eye className="w-4 h-4 text-blue-500" />
                           <span className="font-medium">Analyze</span>
                         </button>
@@ -605,7 +962,7 @@ export default function App() {
                   ))}
                   {filteredSessions.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-16 text-center">
+                      <td colSpan={6} className="p-16 text-center">
                         <div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
                           <Search className="w-10 h-10 mb-3 opacity-20" />
                           <p className="text-base font-medium">No telemetry matches your filters.</p>
@@ -654,6 +1011,12 @@ export default function App() {
                       <div>
                         <p className="font-semibold text-slate-900 dark:text-slate-200">{selectedSession.user.name}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">{selectedSession.user.role} • {selectedSession.user.ip}</p>
+                        {(selectedSession.user.attempts && selectedSession.user.attempts > 1) ? (
+                          <div className="mt-1 flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/10 w-max px-2 py-0.5 rounded border border-rose-300 dark:border-rose-500/20">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            {selectedSession.user.attempts} Failed Login Attempts
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     <StatusBadge verdict={selectedSession.verdict} />
