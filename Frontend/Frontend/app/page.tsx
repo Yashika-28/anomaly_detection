@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 import {
   Keyboard,
   MousePointer2,
@@ -409,6 +410,9 @@ const teamData = [
 ];
 
 export default function App() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const [activeSlide, setActiveSlide] = useState<number | null>(null); // Default to null so none are expanded
   const [hoveredSlide, setHoveredSlide] = useState<number | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -426,14 +430,16 @@ export default function App() {
     setActiveSlide(null);
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
   };
-  const [theme, setTheme] = useState("dark");
+  const { theme, setTheme } = useTheme();
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
+  if (!mounted) return null;
+
   return (
-    <div className={`${theme} transition-colors duration-700 ease-in-out`}>
+    <div className="transition-colors duration-700 ease-in-out">
       {/* Global Seamless Gradient Background */}
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50/50 to-slate-100 dark:from-neutral-950 dark:via-slate-900/80 dark:to-neutral-950 text-slate-900 dark:text-neutral-100 font-sans selection:bg-blue-500/30 overflow-x-hidden transition-colors duration-700 ease-in-out">
 
@@ -462,7 +468,7 @@ export default function App() {
         {/* --- SECTION 1: THE HERO --- */}
         <section className="relative min-h-screen flex flex-col items-center justify-center p-6 sm:p-12 overflow-hidden">
 
-          <NeuralBackground theme={theme} />
+          <NeuralBackground theme={theme || "dark"} />
 
           <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
             <motion.div
@@ -912,13 +918,13 @@ export default function App() {
                   </div>
                 </a>
 
-                <a href="tel:+1234567890" className="flex items-center gap-4 text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors group">
+                <a href="tel:+919958330247" className="flex items-center gap-4 text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors group">
                   <div className="w-12 h-12 shrink-0 rounded-full bg-white/60 dark:bg-neutral-900/80 backdrop-blur-md flex items-center justify-center group-hover:bg-purple-100 dark:group-hover:bg-purple-900/50 transition-colors border border-slate-300/30 dark:border-neutral-700/30 shadow-sm">
                     <Phone className="w-5 h-5 group-hover:text-purple-600 dark:group-hover:text-purple-400" />
                   </div>
                   <div className="text-left">
                     <h4 className="font-bold text-slate-900 dark:text-white leading-tight">Direct Line</h4>
-                    <p className="text-sm">+1 (234) 567-890</p>
+                    <p className="text-sm">+91 9958330247</p>
                   </div>
                 </a>
               </div>

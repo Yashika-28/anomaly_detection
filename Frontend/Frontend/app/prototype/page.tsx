@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTheme } from "next-themes";
 import {
   Upload, Download, MousePointer2, Network, ShieldAlert, CheckCircle, Activity,
   PowerOff, UserPlus, LogIn, Users, MapPin, Globe, Crosshair, Gauge, Zap, ChevronDown, AlertTriangle,
-  Mail, Star, Inbox, Send, Trash2, FileText, Paperclip, Clock, File
+  Mail, Star, Inbox, Send, Trash2, FileText, Paperclip, Clock, File, Sun, Moon
 } from "lucide-react";
 
 type UserEntry = {
@@ -59,6 +60,10 @@ export default function PrototypePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [locationError, setLocationError] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   // Simulator
   const [activeProcesses, setActiveProcesses] = useState("Outlook, Excel, Chrome (Google)");
@@ -305,24 +310,31 @@ export default function PrototypePage() {
   const isCustomLocation = selectedLoc?.label === "Custom Location";
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-300 font-sans" suppressHydrationWarning>
+    <div className="min-h-screen bg-slate-50 dark:bg-[#070b14] text-slate-800 dark:text-slate-300 font-sans transition-colors duration-300" suppressHydrationWarning>
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-600/5 rounded-full blur-[120px]"></div>
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/10 dark:bg-blue-600/5 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/10 dark:bg-purple-600/5 rounded-full blur-[120px]"></div>
       </div>
 
       <div className="relative z-10 p-6 max-w-[1600px] mx-auto">
         {/* HEADER */}
         <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl"><Activity className="w-6 h-6 text-white" /></div>
               UEBA Prototype Engine
             </h1>
             <p className="text-slate-500 mt-2 text-sm">Authenticate → Generate telemetry → Inject threats → Evaluate with AI</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className={`px-5 py-2.5 rounded-xl font-semibold text-sm border backdrop-blur-sm ${isMonitoring ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-slate-900/50 text-slate-500 border-slate-800'}`}>
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-2.5 rounded-xl border backdrop-blur-sm bg-slate-200 dark:bg-slate-900/50 text-slate-600 dark:text-slate-500 border-slate-300 dark:border-slate-800 hover:bg-slate-300 dark:hover:bg-slate-800 transition-colors"
+              title="Toggle Theme"
+            >
+              {mounted ? (theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />) : <div className="w-5 h-5" />}
+            </button>
+            <div className={`px-5 py-2.5 rounded-xl font-semibold text-sm border backdrop-blur-sm ${isMonitoring ? 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30' : 'bg-slate-200 dark:bg-slate-900/50 text-slate-600 dark:text-slate-500 border-slate-300 dark:border-slate-800'}`}>
               {status}
             </div>
           </div>
@@ -333,22 +345,22 @@ export default function PrototypePage() {
 
           {/* COLUMN 1: AUTH / WORKSPACE */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-2xl">
+            <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-800/80 rounded-2xl p-6 shadow-xl dark:shadow-2xl">
 
               {!isLoggedIn ? (
                 <>
                   {/* Auth Mode Toggle */}
                   <div className="flex items-center gap-2 mb-6">
-                    <button suppressHydrationWarning onClick={() => { setAuthMode("login"); setAuthMessage(null); }} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${authMode === "login" ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-800/50 text-slate-400 hover:text-slate-200 border border-slate-700/50'}`}>
+                    <button suppressHydrationWarning onClick={() => { setAuthMode("login"); setAuthMessage(null); }} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${authMode === "login" ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700/50'}`}>
                       <LogIn className="w-4 h-4" /> Login
                     </button>
-                    <button suppressHydrationWarning onClick={() => { setAuthMode("register"); setAuthMessage(null); }} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${authMode === "register" ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-slate-800/50 text-slate-400 hover:text-slate-200 border border-slate-700/50'}`}>
+                    <button suppressHydrationWarning onClick={() => { setAuthMode("register"); setAuthMessage(null); }} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${authMode === "register" ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700/50'}`}>
                       <UserPlus className="w-4 h-4" /> Create Account
                     </button>
                   </div>
 
-                  <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
-                    {authMode === "login" ? <><ShieldAlert className="text-blue-500 w-5 h-5" /> Secure Authentication</> : <><UserPlus className="text-emerald-500 w-5 h-5" /> Register New Account</>}
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
+                    {authMode === "login" ? <><ShieldAlert className="text-blue-600 dark:text-blue-500 w-5 h-5" /> Secure Authentication</> : <><UserPlus className="text-emerald-600 dark:text-emerald-500 w-5 h-5" /> Register New Account</>}
                   </h2>
 
                   {authMessage && (
@@ -360,12 +372,12 @@ export default function PrototypePage() {
 
                   <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
                     <div>
-                      <label className="block text-xs uppercase text-slate-500 font-bold mb-1.5 tracking-wider">Username</label>
-                      <input suppressHydrationWarning type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl p-3 text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-600" placeholder="e.g. marcus_aurelius" required />
+                      <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1.5 tracking-wider">Username</label>
+                      <input suppressHydrationWarning type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" placeholder="e.g. marcus_aurelius" required />
                     </div>
                     <div>
-                      <label className="block text-xs uppercase text-slate-500 font-bold mb-1.5 tracking-wider">Password</label>
-                      <input suppressHydrationWarning type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl p-3 text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-600" placeholder="••••••••" required />
+                      <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1.5 tracking-wider">Password</label>
+                      <input suppressHydrationWarning type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" placeholder="••••••••" required />
                     </div>
 
                     {authMode === "login" && (
@@ -393,37 +405,37 @@ export default function PrototypePage() {
                 <>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <Mail className="w-5 h-5 text-blue-400" />
-                      <h2 className="text-lg font-bold text-white">Inbox</h2>
+                      <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <h2 className="text-lg font-bold text-slate-900 dark:text-white">Inbox</h2>
                       <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">{MOCK_EMAILS.filter(e => e.unread).length}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <span className="text-emerald-400 font-bold">{username}</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">{username}</span>
                     </div>
                   </div>
 
                   {/* Email navigation */}
                   <div className="flex items-center gap-1 mb-3 text-xs">
                     {[{ icon: Inbox, label: "Inbox", count: 6 }, { icon: Star, label: "Starred", count: 2 }, { icon: Send, label: "Sent" }, { icon: Trash2, label: "Trash" }].map((nav, i) => (
-                      <button suppressHydrationWarning key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${i === 0 ? 'bg-blue-600/20 text-blue-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'}`}>
+                      <button suppressHydrationWarning key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${i === 0 ? 'bg-blue-100 dark:bg-blue-600/20 text-blue-700 dark:text-blue-400' : 'text-slate-600 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}>
                         <nav.icon className="w-3.5 h-3.5" /> {nav.label}
-                        {nav.count && <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded-full">{nav.count}</span>}
+                        {nav.count && <span className="text-[10px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">{nav.count}</span>}
                       </button>
                     ))}
                   </div>
 
                   {/* Compose button */}
-                  <button suppressHydrationWarning onClick={() => setComposeOpen(!composeOpen)} className="w-full mb-3 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2 rounded-xl transition-colors flex items-center justify-center gap-2">
+                  <button suppressHydrationWarning onClick={() => setComposeOpen(!composeOpen)} className="w-full mb-3 bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white text-sm font-semibold py-2 rounded-xl transition-colors flex items-center justify-center gap-2">
                     <FileText className="w-4 h-4" /> Compose Email
                   </button>
 
                   {composeOpen && (
-                    <div className="mb-3 bg-slate-950/80 border border-slate-700/50 rounded-xl p-3 space-y-2">
-                      <input suppressHydrationWarning type="text" placeholder="To: recipient@company.com" className="w-full bg-transparent border-b border-slate-800 text-sm text-white p-2 outline-none placeholder:text-slate-600" />
-                      <input suppressHydrationWarning type="text" placeholder="Subject:" className="w-full bg-transparent border-b border-slate-800 text-sm text-white p-2 outline-none placeholder:text-slate-600" />
-                      <textarea rows={3} value={composeText} onChange={(e) => setComposeText(e.target.value)} placeholder="Write your message here... (generates keystroke telemetry)" className="w-full bg-transparent text-sm text-white p-2 outline-none resize-none placeholder:text-slate-600" />
+                    <div className="mb-3 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-700/50 rounded-xl p-3 space-y-2">
+                      <input suppressHydrationWarning type="text" placeholder="To: recipient@company.com" className="w-full bg-transparent border-b border-slate-300 dark:border-slate-800 text-sm xl text-slate-900 dark:text-white p-2 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                      <input suppressHydrationWarning type="text" placeholder="Subject:" className="w-full bg-transparent border-b border-slate-300 dark:border-slate-800 text-sm text-slate-900 dark:text-white p-2 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                      <textarea rows={3} value={composeText} onChange={(e) => setComposeText(e.target.value)} placeholder="Write your message here... (generates keystroke telemetry)" className="w-full bg-transparent text-sm text-slate-900 dark:text-white p-2 outline-none resize-none placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                       <div className="flex justify-end gap-2">
-                        <button suppressHydrationWarning onClick={() => setComposeOpen(false)} className="text-xs text-slate-500 hover:text-slate-300 px-3 py-1.5">Discard</button>
+                        <button suppressHydrationWarning onClick={() => setComposeOpen(false)} className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 px-3 py-1.5">Discard</button>
                         <button suppressHydrationWarning className="text-xs bg-blue-600 text-white px-4 py-1.5 rounded-lg font-semibold">Send</button>
                       </div>
                     </div>
@@ -433,20 +445,20 @@ export default function PrototypePage() {
                   <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
                     {MOCK_EMAILS.map(email => (
                       <div key={email.id} onClick={() => setSelectedEmail(selectedEmail === email.id ? null : email.id)}
-                        className={`p-3 rounded-xl cursor-pointer transition-all border ${selectedEmail === email.id ? 'bg-blue-900/20 border-blue-800/50' : email.unread ? 'bg-slate-800/40 border-slate-700/30 hover:bg-slate-800/60' : 'bg-transparent border-transparent hover:bg-slate-800/30'}`}>
+                        className={`p-3 rounded-xl cursor-pointer transition-all border ${selectedEmail === email.id ? 'bg-blue-100 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50' : email.unread ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 hover:bg-slate-200 dark:hover:bg-slate-800/60' : 'bg-transparent border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/30'}`}>
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
                             {email.starred && <Star className="w-3 h-3 text-amber-400 fill-amber-400" />}
-                            <span className={`text-xs truncate max-w-[180px] ${email.unread ? 'text-white font-bold' : 'text-slate-400'}`}>{email.from}</span>
+                            <span className={`text-xs truncate max-w-[180px] ${email.unread ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-600 dark:text-slate-400'}`}>{email.from}</span>
                           </div>
                           <span className="text-[10px] text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" />{email.time}</span>
                         </div>
-                        <p className={`text-sm truncate ${email.unread ? 'text-slate-200 font-medium' : 'text-slate-400'}`}>{email.subject}</p>
+                        <p className={`text-sm truncate ${email.unread ? 'text-slate-800 dark:text-slate-200 font-medium' : 'text-slate-500 dark:text-slate-400'}`}>{email.subject}</p>
                         {selectedEmail === email.id && (
-                          <div className="mt-2 pt-2 border-t border-slate-800/50">
-                            <p className="text-xs text-slate-400 leading-relaxed">{email.preview}</p>
+                          <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800/50">
+                            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{email.preview}</p>
                             <div className="flex gap-2 mt-2">
-                              <button suppressHydrationWarning className="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg flex items-center gap-1"><Paperclip className="w-3 h-3" /> Attachments</button>
+                              <button suppressHydrationWarning className="text-[10px] bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg flex items-center gap-1"><Paperclip className="w-3 h-3" /> Attachments</button>
                             </div>
                           </div>
                         )}
@@ -455,23 +467,23 @@ export default function PrototypePage() {
                   </div>
 
                   {/* Upload / Download buttons */}
-                  <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-800/50">
+                  <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-800/50">
                     {/* Download with menu */}
                     <div className="relative">
                       <button suppressHydrationWarning onClick={() => setShowDownloadMenu(!showDownloadMenu)} disabled={!isMonitoring || isSubmittedRef.current}
-                        className="w-full flex items-center justify-center gap-2 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 p-3 rounded-xl border border-slate-700/50 transition-all disabled:opacity-40 text-sm">
+                        className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 p-3 rounded-xl border border-slate-200 dark:border-slate-700/50 transition-all disabled:opacity-40 text-sm">
                         <Download className="w-4 h-4" /> Download <ChevronDown className="w-3 h-3" />
                       </button>
                       {showDownloadMenu && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setShowDownloadMenu(false)}></div>
-                          <div className="absolute bottom-full mb-2 left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-2 max-h-[300px] overflow-y-auto">
+                          <div className="absolute bottom-full mb-2 left-0 right-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 p-2 max-h-[300px] overflow-y-auto">
                             <p className="text-[10px] uppercase text-slate-500 font-bold px-2 py-1 tracking-wider">Available Files</p>
                             {DOWNLOADABLE_FILES.map((file, i) => (
-                              <button suppressHydrationWarning key={i} onClick={() => handleDownload(file)} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-3 group">
-                                <File className="w-4 h-4 text-slate-500 group-hover:text-blue-400 shrink-0" />
+                              <button suppressHydrationWarning key={i} onClick={() => handleDownload(file)} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-3 group">
+                                <File className="w-4 h-4 text-slate-400 dark:text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs text-slate-200 font-medium truncate">{file.name}</p>
+                                  <p className="text-xs text-slate-800 dark:text-slate-200 font-medium truncate">{file.name}</p>
                                   <p className="text-[10px] text-slate-500">{file.category} • {formatFileSize(file.size)}</p>
                                 </div>
                               </button>
@@ -485,7 +497,7 @@ export default function PrototypePage() {
                     <div>
                       <input suppressHydrationWarning ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
                       <button suppressHydrationWarning onClick={() => fileInputRef.current?.click()} disabled={!isMonitoring || isSubmittedRef.current}
-                        className="w-full flex items-center justify-center gap-2 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 p-3 rounded-xl border border-slate-700/50 transition-all disabled:opacity-40 text-sm">
+                        className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 p-3 rounded-xl border border-slate-200 dark:border-slate-700/50 transition-all disabled:opacity-40 text-sm">
                         <Upload className="w-4 h-4" /> Upload File
                       </button>
                     </div>
@@ -496,8 +508,8 @@ export default function PrototypePage() {
                     <div className="mt-3 space-y-1">
                       <p className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Uploaded</p>
                       {uploadedFiles.map((f, i) => (
-                        <div key={i} className="flex items-center justify-between text-xs bg-slate-800/40 rounded-lg px-3 py-2">
-                          <span className="text-slate-300 truncate">{f.name}</span>
+                        <div key={i} className="flex items-center justify-between text-xs bg-slate-100 dark:bg-slate-800/40 rounded-lg px-3 py-2">
+                          <span className="text-slate-800 dark:text-slate-300 truncate">{f.name}</span>
                           <span className="text-slate-500">{formatFileSize(f.size)}</span>
                         </div>
                       ))}
@@ -505,7 +517,7 @@ export default function PrototypePage() {
                   )}
 
                   {/* Logout button */}
-                  <div className="mt-4 pt-3 border-t border-slate-800/50">
+                  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800/50">
                     <button suppressHydrationWarning type="button" onClick={handleLogout} className="w-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20">
                       <PowerOff className="w-4 h-4" /> Logout & Submit Evaluation
                     </button>
@@ -517,41 +529,41 @@ export default function PrototypePage() {
 
           {/* COLUMN 2: THREAT INJECTION ENGINE */}
           <div className="lg:col-span-8">
-            <div className="bg-[#0d1018]/80 backdrop-blur-md border border-rose-900/30 rounded-2xl p-6 shadow-[0_0_40px_rgba(225,29,72,0.04)]">
-              <div className="flex items-center justify-between mb-6 border-b border-rose-900/30 pb-4">
-                <h2 className="text-xl font-bold text-rose-400 flex items-center gap-2">
+            <div className="bg-white/80 dark:bg-[#0d1018]/80 backdrop-blur-md border border-rose-200 dark:border-rose-900/30 rounded-2xl p-6 shadow-[0_0_40px_rgba(225,29,72,0.04)]">
+              <div className="flex items-center justify-between mb-6 border-b border-rose-200 dark:border-rose-900/30 pb-4">
+                <h2 className="text-xl font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
                   <div className="p-2 bg-gradient-to-br from-rose-600 to-orange-600 rounded-xl"><ShieldAlert className="text-white w-5 h-5" /></div>
                   Threat Injection Engine
                 </h2>
-                <span className="text-xs text-slate-500 bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-800/50">Manipulate telemetry before it reaches AI models</span>
+                <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800/50">Manipulate telemetry before it reaches AI models</span>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 {/* User Impersonation */}
-                <div className="bg-slate-900/40 p-5 rounded-xl border border-slate-800/50">
-                  <label className="block text-xs uppercase text-amber-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Users className="w-4 h-4" /> Target User Impersonation</label>
+                <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                  <label className="block text-xs uppercase text-amber-600 dark:text-amber-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Users className="w-4 h-4" /> Target User Impersonation</label>
                   <div className="relative">
-                    <select suppressHydrationWarning value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl p-3 text-white focus:border-amber-500 outline-none appearance-none cursor-pointer transition-colors" disabled={isSubmittedRef.current}>
+                    <select suppressHydrationWarning value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-amber-500 outline-none appearance-none cursor-pointer transition-colors" disabled={isSubmittedRef.current}>
                       <option value="">Use logged-in user ({username || "none"})</option>
                       {userList.map(u => (<option key={u.username} value={u.username}>{u.username} — {u.attempts} attempts — {u.lastIp}</option>))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
                   </div>
-                  {selectedUser && <div className="mt-3 bg-amber-900/10 border border-amber-800/30 rounded-lg p-3 text-xs text-amber-400">Injecting as: <span className="font-bold text-amber-300">{selectedUser}</span></div>}
+                  {selectedUser && <div className="mt-3 bg-amber-100 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-400">Injecting as: <span className="font-bold text-amber-600 dark:text-amber-300">{selectedUser}</span></div>}
                 </div>
 
                 {/* IP Spoofing */}
-                <div className="bg-slate-900/40 p-5 rounded-xl border border-slate-800/50">
-                  <label className="block text-xs uppercase text-cyan-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Globe className="w-4 h-4" /> IP Address Spoofing</label>
-                  <input suppressHydrationWarning type="text" value={spoofIp} onChange={(e) => setSpoofIp(e.target.value)} placeholder={`Real: ${trackData.current.ip}`} className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl p-3 text-white focus:border-cyan-500 outline-none font-mono transition-colors placeholder:text-slate-600" disabled={isSubmittedRef.current} />
+                <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                  <label className="block text-xs uppercase text-cyan-600 dark:text-cyan-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Globe className="w-4 h-4" /> IP Address Spoofing</label>
+                  <input suppressHydrationWarning type="text" value={spoofIp} onChange={(e) => setSpoofIp(e.target.value)} placeholder={`Real: ${trackData.current.ip}`} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-cyan-500 outline-none font-mono transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" disabled={isSubmittedRef.current} />
                   <p className="text-xs text-slate-500 mt-2">Leave empty to use real IP</p>
                 </div>
 
                 {/* Location Override */}
-                <div className="bg-slate-900/40 p-5 rounded-xl border border-slate-800/50">
-                  <label className="block text-xs uppercase text-violet-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><MapPin className="w-4 h-4" /> Location Spoofing</label>
+                <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                  <label className="block text-xs uppercase text-violet-600 dark:text-violet-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><MapPin className="w-4 h-4" /> Location Spoofing</label>
                   <div className="relative">
-                    <select suppressHydrationWarning value={selectedLocationIdx} onChange={(e) => setSelectedLocationIdx(parseInt(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl p-3 text-white focus:border-violet-500 outline-none appearance-none cursor-pointer transition-colors" disabled={isSubmittedRef.current}>
+                    <select suppressHydrationWarning value={selectedLocationIdx} onChange={(e) => setSelectedLocationIdx(parseInt(e.target.value))} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-violet-500 outline-none appearance-none cursor-pointer transition-colors" disabled={isSubmittedRef.current}>
                       <option value={-1}>Use real location</option>
                       {PRESET_LOCATIONS.map((loc, i) => (<option key={i} value={i}>{loc.label} ({loc.lat.toFixed(2)}°, {loc.lon.toFixed(2)}°)</option>))}
                     </select>
@@ -559,47 +571,47 @@ export default function PrototypePage() {
                   </div>
                   {isCustomLocation && selectedLocationIdx >= 0 && (
                     <div className="grid grid-cols-2 gap-3 mt-3">
-                      <input suppressHydrationWarning type="text" value={customLat} onChange={(e) => setCustomLat(e.target.value)} placeholder="Latitude" className="bg-slate-950/80 border border-slate-700/80 rounded-lg p-2.5 text-white text-sm font-mono focus:border-violet-500 outline-none" />
-                      <input suppressHydrationWarning type="text" value={customLon} onChange={(e) => setCustomLon(e.target.value)} placeholder="Longitude" className="bg-slate-950/80 border border-slate-700/80 rounded-lg p-2.5 text-white text-sm font-mono focus:border-violet-500 outline-none" />
+                      <input suppressHydrationWarning type="text" value={customLat} onChange={(e) => setCustomLat(e.target.value)} placeholder="Latitude" className="bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-lg p-2.5 text-slate-900 dark:text-white text-sm font-mono focus:border-violet-500 outline-none" />
+                      <input suppressHydrationWarning type="text" value={customLon} onChange={(e) => setCustomLon(e.target.value)} placeholder="Longitude" className="bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-lg p-2.5 text-slate-900 dark:text-white text-sm font-mono focus:border-violet-500 outline-none" />
                     </div>
                   )}
                 </div>
 
                 {/* Login Attempts Override */}
-                <div className="bg-slate-900/40 p-5 rounded-xl border border-slate-800/50">
-                  <label className="block text-xs uppercase text-orange-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Crosshair className="w-4 h-4" /> Login Attempt Count</label>
+                <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                  <label className="block text-xs uppercase text-orange-600 dark:text-orange-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Crosshair className="w-4 h-4" /> Login Attempt Count</label>
                   <div className="flex items-center gap-4">
                     <input suppressHydrationWarning type="range" min="1" max="20" value={loginAttemptOverride} onChange={(e) => setLoginAttemptOverride(parseInt(e.target.value))} className="flex-1 accent-orange-500" disabled={isSubmittedRef.current} />
-                    <span className={`text-2xl font-bold font-mono min-w-[3ch] text-right ${loginAttemptOverride > 5 ? 'text-rose-400' : loginAttemptOverride > 3 ? 'text-amber-400' : 'text-emerald-400'}`}>{loginAttemptOverride}</span>
+                    <span className={`text-2xl font-bold font-mono min-w-[3ch] text-right ${loginAttemptOverride > 5 ? 'text-rose-600 dark:text-rose-400' : loginAttemptOverride > 3 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{loginAttemptOverride}</span>
                   </div>
                   <p className="text-xs text-slate-500 mt-2">{loginAttemptOverride > 5 ? '⚠ Brute-force pattern' : loginAttemptOverride > 3 ? '⚠ Suspicious' : '✓ Normal range'}</p>
                 </div>
 
                 {/* Mouse Velocity */}
-                <div className="bg-slate-900/40 p-5 rounded-xl border border-slate-800/50">
-                  <label className="block text-xs uppercase text-pink-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><MousePointer2 className="w-4 h-4" /> Mouse Velocity</label>
+                <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                  <label className="block text-xs uppercase text-pink-600 dark:text-pink-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><MousePointer2 className="w-4 h-4" /> Mouse Velocity</label>
                   <div className="flex items-center gap-4">
                     <input suppressHydrationWarning type="range" min="100" max="10000" step="100" value={isBotMode ? 8500 : mouseVelocityOverride} onChange={(e) => setMouseVelocityOverride(parseInt(e.target.value))} className="flex-1 accent-pink-500" disabled={isSubmittedRef.current || isBotMode} />
-                    <span className={`text-lg font-bold font-mono min-w-[6ch] text-right ${(isBotMode ? 8500 : mouseVelocityOverride) > 3000 ? 'text-rose-400' : 'text-emerald-400'}`}>{isBotMode ? 8500 : mouseVelocityOverride}</span>
+                    <span className={`text-lg font-bold font-mono min-w-[6ch] text-right ${(isBotMode ? 8500 : mouseVelocityOverride) > 3000 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{isBotMode ? 8500 : mouseVelocityOverride}</span>
                   </div>
                   <p className="text-xs text-slate-500 mt-2">px/s • Human: 200-1500 • Bot: 3000+</p>
                 </div>
 
                 {/* Keystroke Delay */}
-                <div className="bg-slate-900/40 p-5 rounded-xl border border-slate-800/50">
-                  <label className="block text-xs uppercase text-teal-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Gauge className="w-4 h-4" /> Keystroke Delay</label>
+                <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                  <label className="block text-xs uppercase text-teal-600 dark:text-teal-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Gauge className="w-4 h-4" /> Keystroke Delay</label>
                   <div className="flex items-center gap-4">
                     <input suppressHydrationWarning type="range" min="0.001" max="0.5" step="0.001" value={isBotMode ? 0.005 : keystrokeDelayOverride} onChange={(e) => setKeystrokeDelayOverride(parseFloat(e.target.value))} className="flex-1 accent-teal-500" disabled={isSubmittedRef.current || isBotMode} />
-                    <span className={`text-lg font-bold font-mono min-w-[6ch] text-right ${(isBotMode ? 0.005 : keystrokeDelayOverride) < 0.05 ? 'text-rose-400' : 'text-emerald-400'}`}>{(isBotMode ? 0.005 : keystrokeDelayOverride).toFixed(3)}s</span>
+                    <span className={`text-lg font-bold font-mono min-w-[6ch] text-right ${(isBotMode ? 0.005 : keystrokeDelayOverride) < 0.05 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{(isBotMode ? 0.005 : keystrokeDelayOverride).toFixed(3)}s</span>
                   </div>
                   <p className="text-xs text-slate-500 mt-2">Human: 0.08-0.3s • Bot: &lt;0.05s</p>
                 </div>
 
                 {/* Endpoint Spoofing */}
-                <div className="bg-slate-900/40 p-5 rounded-xl border border-slate-800/50">
-                  <label className="block text-xs uppercase text-amber-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Network className="w-4 h-4" /> Spoof Endpoint Processes</label>
+                <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                  <label className="block text-xs uppercase text-amber-600 dark:text-amber-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Network className="w-4 h-4" /> Spoof Endpoint Processes</label>
                   <div className="relative">
-                    <select suppressHydrationWarning value={activeProcesses} onChange={(e) => setActiveProcesses(e.target.value)} className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl p-3 text-white focus:border-amber-500 outline-none appearance-none cursor-pointer transition-colors" disabled={isSubmittedRef.current}>
+                    <select suppressHydrationWarning value={activeProcesses} onChange={(e) => setActiveProcesses(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-amber-500 outline-none appearance-none cursor-pointer transition-colors" disabled={isSubmittedRef.current}>
                       <option value="Outlook, Excel, Chrome (Google)">[Normal] Outlook, Excel, Chrome</option>
                       <option value="Chrome (YouTube, Spotify), Slack">[Warning] Distracted / High Bandwidth</option>
                       <option value="Tor Browser, Wireshark, Cmd.exe">[Critical] Tor Browser, Wireshark, Cmd</option>
@@ -611,16 +623,16 @@ export default function PrototypePage() {
                 </div>
 
                 {/* Bot Mode */}
-                <div className={`p-5 rounded-xl border transition-all ${isBotMode ? 'bg-rose-950/20 border-rose-800/50 shadow-[0_0_20px_rgba(225,29,72,0.05)]' : 'bg-slate-900/40 border-slate-800/50'}`}>
+                <div className={`p-5 rounded-xl border transition-all ${isBotMode ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/50 shadow-[0_0_20px_rgba(225,29,72,0.05)]' : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800/50'}`}>
                   <div className="flex justify-between items-center mb-3">
-                    <label className="text-xs uppercase font-bold flex items-center gap-2 text-rose-400 tracking-wider"><Zap className="w-4 h-4" /> Full Bot Override</label>
-                    <button suppressHydrationWarning type="button" onClick={() => setIsBotMode(!isBotMode)} disabled={isSubmittedRef.current} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${isBotMode ? 'bg-rose-600 shadow-lg shadow-rose-600/30' : 'bg-slate-700'}`}>
+                    <label className="text-xs uppercase font-bold flex items-center gap-2 text-rose-600 dark:text-rose-400 tracking-wider"><Zap className="w-4 h-4" /> Full Bot Override</label>
+                    <button suppressHydrationWarning type="button" onClick={() => setIsBotMode(!isBotMode)} disabled={isSubmittedRef.current} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${isBotMode ? 'bg-rose-600 shadow-lg shadow-rose-600/30' : 'bg-slate-300 dark:bg-slate-700'}`}>
                       <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${isBotMode ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                   </div>
-                  <p className="text-xs text-slate-400">Mouse → <span className="text-white font-mono">8,500 px/s</span> • Keys → <span className="text-white font-mono">0.005s</span></p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Mouse → <span className="text-slate-900 dark:text-white font-mono">8,500 px/s</span> • Keys → <span className="text-slate-900 dark:text-white font-mono">0.005s</span></p>
                   {isBotMode && (
-                    <div className="mt-3 bg-rose-900/20 text-rose-400 p-3 rounded-lg text-xs font-mono border border-rose-900/40 animate-pulse">
+                    <div className="mt-3 bg-rose-100 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 p-3 rounded-lg text-xs font-mono border border-rose-200 dark:border-rose-900/40 animate-pulse">
                       &gt; INJECTING SYNTHETIC INPUT...<br />&gt; OVERRIDING HCI BIOMETRICS...<br />&gt; BOT_SIGNATURE: ACTIVE
                     </div>
                   )}
