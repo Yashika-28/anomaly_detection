@@ -34,24 +34,24 @@
                │  WSS (Live Telemetry Stream)         │  HTTPS POST
                ▼                                      ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                     BACKEND (FastAPI + Python)                    │
+│                     BACKEND (FastAPI + Python)                   │
 │                                                                  │
 │   ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
 │   │  One-Class   │  │      Deep        │  │     Gaussian     │   │
 │   │    SVM       │  │   Autoencoder    │  │   Mixture Model  │   │
 │   └──────┬───────┘  └───────┬──────────┘  └───────┬──────────┘   │
-│          └──────────────────┼──────────────────────┘              │
+│          └──────────────────┼──────────────────────┘             │
 │                             ▼                                    │
-│                    ┌─────────────────┐                            │
-│                    │  Action Engine  │                            │
-│                    │ ALLOW │ MFA │ BLOCK                          │
-│                    └────────┬────────┘                            │
+│                    ┌─────────────────┐                           │
+│                    │  Action Engine  │                           │
+│                    │ ALLOW │ MFA │ BLOCK                         │
+│                    └────────┬────────┘                           │
 └─────────────────────────────┼────────────────────────────────────┘
                               │  WSS (Broadcast)
                               ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                     SOC DASHBOARD (Next.js)                       │
-│              Live Threat Hunting & Session Monitoring             │
+│                     SOC DASHBOARD (Next.js)                      │
+│              Live Threat Hunting & Session Monitoring            │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -66,16 +66,10 @@ anomaly_detection/
 │   ├── model_train.py              # Model training scripts
 │   ├── train_test3.py              # Ensemble training & evaluation
 │   ├── train_test4.py              # Advanced training pipeline
-│   ├── 📁 models/                  # Trained model artifacts
-│   │   ├── login_ocsvm_pipeline.pkl
-│   │   ├── behavior_deep_ae.h5
-│   │   ├── behavior_deep_scaler.pkl
-│   │   ├── behavior_deep_threshold.pkl
-│   │   ├── network_gmm_pipeline.pkl
-│   │   └── network_gmm_threshold.pkl
 │   ├── log_login_500users.csv      # Login telemetry dataset
 │   ├── log_behavior_500users.csv   # Behavioral biometrics dataset
 │   └── log_network_500users.csv    # Network traffic dataset
+│   └── 📁 models/                  # Trained model artifacts
 │
 ├── 📁 web_app/
 │   ├── 📁 backend/
@@ -165,7 +159,6 @@ This project is open source and available under the [MIT License](LICENSE).
 
 <div align="center">
 
-**Built with 🧠 AI & ❤️ by the Neurometric Shield Team**
 
 [![GitHub](https://img.shields.io/badge/GitHub-Yashika--28-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Yashika-28/anomaly_detection)
 [![Live](https://img.shields.io/badge/🌐_Visit-neurometric--shield.vercel.app-0ea5e9?style=for-the-badge)](https://neurometric-shield.vercel.app/)
