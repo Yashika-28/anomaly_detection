@@ -153,7 +153,7 @@ python model_train.py
 
 ## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
+This project is open source and available under the [Apache 2.0 License](https://github.com/Yashika-28/anomaly_detection/blob/main/LICENSE).
 
 ---
 
