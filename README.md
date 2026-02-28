@@ -2,9 +2,7 @@
 
 # 🛡️ Neurometric Shield
 
-### _Beyond Passwords. True Zero-Trust Security._
-
-An enterprise-grade **User & Entity Behavior Analytics (UEBA)** platform powered by unsupervised machine learning. We don't just verify logins — we continuously monitor _how_ you behave post-authentication.
+### _Enterprise-Grade UEBA Platform_
 
 [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-neurometric--shield.vercel.app-0ea5e9?style=for-the-badge&logoColor=white)](https://neurometric-shield.vercel.app/)
 
@@ -25,71 +23,6 @@ An enterprise-grade **User & Entity Behavior Analytics (UEBA)** platform powered
 ---
 
 </div>
-
-## 🎯 Overview
-
-**Neurometric Shield** is a full-stack cybersecurity platform that deploys an ensemble of **three unsupervised ML models** to continuously evaluate user behavior in real-time. Unlike traditional authentication systems that only check credentials at login, our system captures keystroke dynamics, mouse movement velocity, network telemetry, and device fingerprints — streaming everything over WebSockets to a live SOC (Security Operations Center) dashboard.
-
-> 🧠 **Core Philosophy**: Authentication isn't a single event. We are watching _everything_.
-
----
-
-## ✨ Key Features
-
-| Feature | Description |
-|:---|:---|
-| 🔐 **Continuous UEBA** | Post-login behavioral monitoring using biometric and network telemetry |
-| 🤖 **AI Ensemble** | Three specialized unsupervised ML models working in harmony |
-| ⚡ **Real-Time Streaming** | WebSocket-based live data pipeline from client → backend → SOC |
-| 🖥️ **SOC Dashboard** | Security Operations Center with live threat hunting and session monitoring |
-| 🎮 **Attack Simulator** | Interactive prototype to inject anomalous login parameters and test AI detection |
-| 🌗 **Dark / Light Mode** | Fully themed UI with smooth transitions |
-| 🎨 **Premium UI** | Neural network particle backgrounds, animated code streams, and glassmorphism design |
-| 📍 **Geolocation Tracking** | Location-based anomaly detection (impossible travel) |
-| 🔒 **reCAPTCHA Integration** | Anti-bot verification at authentication layer |
-
----
-
-## 🧠 The AI Ensemble
-
-Our three-model architecture covers **Contextual Identity**, **HCI Biometrics**, and **Endpoint Telemetry** — leaving no blind spots.
-
-<table>
-<tr>
-<td align="center" width="33%">
-
-### 🔵 One-Class SVM
-**Contextual Identity**
-
-Establishes strict boundaries of normative login behavior (IP, OS, Geolocation) and flags outliers. Prevents impossible travel and device spoofing attacks.
-
-`login_ocsvm_pipeline.pkl`
-
-</td>
-<td align="center" width="33%">
-
-### 🟣 Deep Autoencoder
-**HCI Biometrics**
-
-Compresses keystroke dynamics and mouse velocity into a latent space. Flags hijacked sessions when reconstruction error spikes above threshold.
-
-`behavior_deep_ae.h5`
-
-</td>
-<td align="center" width="33%">
-
-### 🟢 Gaussian Mixture Model
-**Endpoint Telemetry**
-
-Maps probability distributions of network packets to detect insider threats deviating from typical usage clusters.
-
-`network_gmm_pipeline.pkl`
-
-</td>
-</tr>
-</table>
-
----
 
 ## 🏗️ Architecture
 
@@ -149,7 +82,7 @@ anomaly_detection/
 │   │   └── main.py                 # FastAPI server + WebSocket handlers
 │   └── 📁 Frontend/               # Next.js 16 Application
 │       ├── 📁 app/
-│       │   ├── page.tsx            # Landing page (hero, pipeline, team)
+│       │   ├── page.tsx            # Landing page
 │       │   ├── prototype/page.tsx  # Attack simulator portal
 │       │   └── dashboard/page.tsx  # SOC dashboard
 │       ├── package.json
@@ -205,45 +138,6 @@ python model_train.py
 
 ---
 
-## 🖥️ Pages & Features
-
-<details>
-<summary><b>🏠 Landing Page</b></summary>
-
-- Interactive neural network particle canvas background
-- Animated code stream overlays
-- AI Ensemble accordion with live SVG model visualizations (OCSVM decision boundary, Autoencoder network, GMM density curves)  
-- Animated data pipeline with flowing light effect
-- Interactive hacker face with eye-tracking
-- Team section with avatars
-- Full light/dark theme toggle
-
-</details>
-
-<details>
-<summary><b>🎮 Prototype Simulator</b></summary>
-
-- Select mock user profiles with different behavioral baselines
-- Inject custom parameters: IP address, OS, geolocation, keystroke speed, mouse velocity
-- reCAPTCHA verification step
-- Real-time AI evaluation with risk scoring
-- Results streamed live to SOC Dashboard via WebSocket
-
-</details>
-
-<details>
-<summary><b>📊 SOC Dashboard</b></summary>
-
-- Live WebSocket feed of all login attempts and sessions
-- Real-time threat status indicators (Safe / Monitoring / Anomaly)
-- Session telemetry details: keystrokes, mouse velocity, network bytes, protocol
-- Login attempt counters and timestamps
-- Filterable event log
-
-</details>
-
----
-
 ## 🛠️ Tech Stack
 
 <div align="center">
@@ -260,31 +154,6 @@ python model_train.py
 | **Deployment** | Vercel |
 
 </div>
-
----
-
-## 🔄 Data Pipeline
-
-```
- 📱 Client Browser          🔌 WebSocket           🧪 AI Models            🛡️ SOC
- ┌─────────────┐     WSS    ┌────────────┐  ML     ┌────────────┐  WSS    ┌────────────┐
- │  Keystroke   │───────────▶│  FastAPI    │────────▶│  Ensemble  │────────▶│  Dashboard │
- │  Mouse       │            │  Server    │         │  OCSVM     │         │  Live Feed │
- │  Network     │            │            │         │  AE        │         │  Alerts    │
- │  Device      │            │  Port:8000 │         │  GMM       │         │  Graphs    │
- └─────────────┘             └────────────┘         └────────────┘         └────────────┘
-```
-
----
-
-## 👥 Team
-
-| Name | Role |
-|:---|:---|
-| **Akshi Malik** | Lead ML Engineer |
-| **Anamika Chahal** | Frontend Architect |
-| **Priyanshi** | Security Analyst |
-| **Archit** | Backend Developer |
 
 ---
 
