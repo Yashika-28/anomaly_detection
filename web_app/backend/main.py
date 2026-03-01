@@ -3,8 +3,36 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import datetime
 import random
+import smtplib
+from email.message import EmailMessage
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
+
+# --- NEW: OTP Storage & Email Config ---
+active_otps = {}
+
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "neurometric.alert@gmail.com")
+SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD", "1234")
+
+def send_otp_email(target_email: str, otp: str):
+    msg = EmailMessage()
+    msg.set_content(f"Your SecureBank verification code is: {otp}\n\nDo not share this code with anyone. This was triggered by unusual login behavior.")
+    msg['Subject'] = 'UEBA Security Alert: Verification Required'
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = target_email
+
+    try:
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        print(f"OTP {otp} sent successfully to {target_email}")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,29 +90,73 @@ class LoginPayload(BaseModel):
     avg_keystroke_delay: float
     mouse_velocity: float
     tab_switch_count: int
-    bytes_sent: int # Ensure the API expects this to prevent crashes
+    bytes_sent: int 
+    active_processes: str = ""
+    attempts: int
+    login_attempts_override: int
+    email: str | None = "nischalsharma2037@gmail.com"
 
 @app.post("/api/evaluate")
 async def evaluate_login(payload: LoginPayload):
     current_time = datetime.datetime.now().strftime("%H:%M:%S")
     
-    # payload.dict() converts the incoming JSON to a Python dictionary
     full_record = payload.dict() 
     full_record["time"] = current_time
     full_record["type"] = "FINAL_EVALUATION"
     full_record["protocol"] = "HTTPS (POST)"
 
-    # AI EVALUATION LOGIC
-    # Note: If typing speed is extremely fast (bot), or mouse velocity is superhuman, or too many tab switches
-    if payload.avg_keystroke_delay < 0.05 or payload.tab_switch_count > 3 or payload.mouse_velocity > 3000:
-        full_record["risk_status"] = "ANOMALY (Bot Detected)"
-        full_record["color"] = "#dc2626" 
+    # AI EVALUATION LOGIC WITH ADAPTIVE MFA
+    is_bot = payload.avg_keystroke_delay < 0.05 or payload.mouse_velocity > 3000
+    is_hacker = "Tor" in payload.active_processes or "Wireshark" in payload.active_processes or "nmap" in payload.active_processes or "Burp" in payload.active_processes or "Hydra" in payload.active_processes
+    has_excessive_attempts = payload.attempts > 2 or payload.login_attempts_override > 2
+    is_distracted = "Slack" in payload.active_processes or payload.tab_switch_count > 2
+
+    # Priority: If excessive login attempts, ALWAYS trigger MFA (never block)
+    # This prevents denial-of-service by brute-forcing someone's account
+    if has_excessive_attempts or is_distracted:
+        full_record["risk_status"] = "WARNING (MFA Triggered)"
+        full_record["color"] = "#f59e0b" # Orange/Amber
+        action = "mfa_required"
+        
+        # Generate and send OTP
+        otp = str(random.randint(100000, 999999))
+        active_otps[payload.username] = otp
+        send_otp_email(payload.email, otp)
+    elif is_bot or is_hacker:
+        full_record["risk_status"] = "CRITICAL ANOMALY (Blocked)"
+        full_record["color"] = "#dc2626" # Red
+        action = "blocked"
     else:
-        full_record["risk_status"] = "SAFE (Normal Human)"
-        full_record["color"] = "#16a34a" 
+        full_record["risk_status"] = "SAFE (Authenticated)"
+        full_record["color"] = "#16a34a" # Green
+        action = "success"
 
     await manager.broadcast_to_soc(full_record)
-    return {"status": "success"}
+    return {"status": action, "message": "Evaluation complete"}
+
+# --- NEW: OTP Verification Endpoint ---
+class VerifyPayload(BaseModel):
+    username: str
+    otp: str
+
+@app.post("/api/verify-otp")
+async def verify_otp(payload: VerifyPayload):
+    # Check if user has an active OTP and if it matches
+    if payload.username in active_otps and str(active_otps[payload.username]) == payload.otp:
+        del active_otps[payload.username] # Clear the OTP so it can't be reused
+        
+        # Broadcast to SOC that they passed
+        await manager.broadcast_to_soc({
+            "time": datetime.datetime.now().strftime("%H:%M:%S"),
+            "username": payload.username,
+            "type": "FINAL_EVALUATION",
+            "risk_status": "MFA PASSED (Authenticated)",
+            "color": "#16a34a",
+            "lat": 0, "lon": 0, "ip_address": "Verified", "os": "-", "protocol": "-", "bytes_sent": 0, "avg_keystroke_delay": 0, "mouse_velocity": 0, "tab_switch_count": 0, "active_processes": "Identity Confirmed"
+        })
+        return {"status": "success"}
+    else:
+        return {"status": "failed", "message": "Invalid OTP"}
 
 @app.websocket("/ws/soc")
 async def websocket_soc_endpoint(websocket: WebSocket):

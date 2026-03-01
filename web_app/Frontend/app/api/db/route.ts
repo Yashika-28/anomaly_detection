@@ -9,6 +9,7 @@ if (!globalDb.mockDb) {
         users: {
             "marcus_aurelius": {
                 password: "password123",
+                email: "nischalsharma2037@gmail.com",
                 attempts: 1,
                 telemetry: {
                     ip_address: "192.168.1.15",
@@ -26,6 +27,7 @@ if (!globalDb.mockDb) {
             },
             "sys_admin_sim": {
                 password: "admin_password",
+                email: "nischalsharma2037@gmail.com",
                 attempts: 4,
                 telemetry: {
                     ip_address: "10.0.0.84",
@@ -43,6 +45,7 @@ if (!globalDb.mockDb) {
             },
             "john_doe": {
                 password: "secure456",
+                email: "nischalsharma2037@gmail.com",
                 attempts: 2,
                 telemetry: {
                     ip_address: "192.168.1.15",
@@ -60,6 +63,7 @@ if (!globalDb.mockDb) {
             },
             "alice_wong": {
                 password: "pass789",
+                email: "nischalsharma2037@gmail.com",
                 attempts: 6,
                 telemetry: {
                     ip_address: "10.0.0.84",
@@ -185,15 +189,15 @@ export async function POST(req: Request) {
         if (action === "RECORD_LOGIN") {
             const { username, password, telemetry } = payload;
 
-            let attempts = 1;
-
             if (!db.users[username]) {
                 db.users[username] = { password, attempts: 1, telemetry };
             } else {
-                db.users[username].attempts += 1;
-                attempts = db.users[username].attempts;
                 db.users[username].telemetry = telemetry;
             }
+
+            // Use the override if the injection slider was used (>1), otherwise use server-side count
+            const overrideAttempts = telemetry?.login_attempts_override || 0;
+            const attempts = overrideAttempts > 1 ? overrideAttempts : (db.users[username].attempts || 1);
 
             const newSession = {
                 id: `${username}-${Date.now()}`,
@@ -242,11 +246,32 @@ export async function POST(req: Request) {
                 return NextResponse.json({ success: false, error: "User not found" });
             }
 
+            // Increment attempts on every login click (success or failure)
+            user.attempts = (user.attempts || 0) + 1;
+
             if (user.password !== password) {
-                return NextResponse.json({ success: false, error: "Incorrect password" });
+                return NextResponse.json({ success: false, error: "Incorrect password", attempts: user.attempts });
             }
 
             return NextResponse.json({ success: true, attempts: user.attempts });
+        }
+
+        if (action === "RECORD_FAILED_ATTEMPTS") {
+            const { username, attempts, telemetry } = payload;
+
+            const newSession = {
+                id: `${username}-brute-${Date.now()}`,
+                username,
+                attempts,
+                telemetry: telemetry || {},
+                timestamp: new Date().toISOString(),
+                status: "Brute-Force Attempt"
+            };
+
+            db.sessions.unshift(newSession);
+            if (db.sessions.length > 100) db.sessions.pop();
+
+            return NextResponse.json({ success: true, session: newSession });
         }
 
         if (action === "GET_SESSIONS") {
@@ -284,8 +309,8 @@ export async function POST(req: Request) {
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             sessions.forEach((s: any) => {
-                const isAnomaly = s.telemetry?.risk_status?.some((r: string) => r.includes("ANOMALY")) || s.attempts > 3;
-                const isSafe = s.telemetry?.risk_status?.includes("SAFE") && s.attempts <= 3;
+                const isAnomaly = s.telemetry?.risk_status?.some((r: string) => r.includes("ANOMALY")) || s.attempts > 2;
+                const isSafe = s.telemetry?.risk_status?.includes("SAFE") && s.attempts <= 2;
                 const verdict = isSafe ? "safe" : isAnomaly ? "critical" : "warning";
 
                 verdicts[verdict]++;
@@ -318,7 +343,7 @@ export async function POST(req: Request) {
                 if (s.telemetry?.tab_switch_count > 2) threatTypes.devtools++;
                 if (s.telemetry?.avg_keystroke_delay < 0.05) threatTypes.paste++;
                 if (s.telemetry?.bytes_sent > 100000000) threatTypes.highData++;
-                if (s.attempts > 3) threatTypes.bruteForce++;
+                if (s.attempts > 2) threatTypes.bruteForce++;
             });
 
             return NextResponse.json({
@@ -331,7 +356,7 @@ export async function POST(req: Request) {
                     userTargets,
                     threatTypes,
                     uniqueIps: Object.keys(ipGroups).length,
-                    bruteForceAttempts: Object.values(userTargets).filter((u: any) => u.attempts > 3).length
+                    bruteForceAttempts: Object.values(userTargets).filter((u: any) => u.attempts > 2).length
                 }
             });
         }

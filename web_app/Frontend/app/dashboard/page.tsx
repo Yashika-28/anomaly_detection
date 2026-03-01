@@ -312,7 +312,8 @@ export default function App() {
           user: {
             name: data.username || "Unknown",
             role: data.type === "FINAL_EVALUATION" ? "User" : "Streaming...",
-            ip: data.ip_address
+            ip: data.ip_address,
+            attempts: data.attempts || 1
           },
           status: data.type === "LIVE_UPDATE" ? "Live" : "Locked",
           verdict: data.risk_status.includes("SAFE") ? "Safe" :
@@ -348,7 +349,7 @@ export default function App() {
         };
 
         setSessions((prev) => {
-          const existingIndex = prev.findIndex(s => s.user.name === newSession.user.name);
+          const existingIndex = prev.findIndex(s => s.id === newSession.id);
           if (existingIndex !== -1) {
             const updated = [...prev];
             updated[existingIndex] = newSession;
@@ -380,7 +381,7 @@ export default function App() {
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             data.sessions.forEach((s: any) => {
-              const isAnomaly = s.telemetry?.risk_status?.includes("ANOMALY") || s.attempts > 3;
+              const isAnomaly = s.telemetry?.risk_status?.some((r: string) => r.includes("ANOMALY")) || s.attempts > 3;
               const verdict = s.telemetry?.risk_status?.includes("SAFE") && s.attempts <= 3 ? "Safe" :
                 isAnomaly ? "Critical" : "Warning";
 
@@ -389,11 +390,11 @@ export default function App() {
                 timestamp: s.timestamp,
                 user: {
                   name: s.username,
-                  role: "Prototype User",
+                  role: s.status === "Brute-Force Attempt" ? "Brute-Force Attempt" : "Prototype User",
                   ip: s.telemetry?.ip_address || "Unknown",
                   attempts: s.attempts
                 },
-                status: "Locked",
+                status: s.status === "Brute-Force Attempt" ? "Login Failed" : "Locked",
                 verdict: verdict,
                 geo: {
                   lat: s.telemetry?.lat || 0,
@@ -425,13 +426,17 @@ export default function App() {
                 }
               };
 
-              const existingIndex = updated.findIndex(u => u.user.name === newSession.user.name);
+              const existingIndex = updated.findIndex(u => u.id === newSession.id);
               if (existingIndex !== -1) {
-                // Don't overwrite a Live WebSocket session with a DB poll result
-                if (updated[existingIndex].status === 'Live') return;
                 updated[existingIndex] = newSession;
               } else {
-                updated.unshift(newSession);
+                // Check if there's a WebSocket session for this user that should be replaced with the DB record
+                const liveIndex = updated.findIndex(u => u.user.name === newSession.user.name && u.id.startsWith('live-'));
+                if (liveIndex !== -1) {
+                  updated[liveIndex] = newSession;
+                } else {
+                  updated.unshift(newSession);
+                }
               }
               changed = true;
             });
@@ -510,7 +515,10 @@ export default function App() {
       return matchesSearch && matchesRisk && matchesTime;
     });
 
-    // Deduplicate by username — keep first occurrence (latest) per user
+    // Sort by timestamp descending BEFORE dedup so newest per user wins
+    filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    // Deduplicate by username — keep first occurrence (newest) per user
     const seen = new Set<string>();
     const deduped = filtered.filter((s: Session) => {
       if (seen.has(s.user.name)) return false;
@@ -518,8 +526,6 @@ export default function App() {
       return true;
     });
 
-    // Sort by timestamp descending so newest sessions appear first
-    deduped.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     return deduped;
   }, [search, filterRisk, timeRange, customStart, customEnd, sessions]);
 
