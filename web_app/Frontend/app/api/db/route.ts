@@ -207,11 +207,30 @@ export async function POST(req: Request) {
                 timestamp: new Date().toISOString()
             };
 
-            db.sessions.unshift(newSession);
+            const dbFingerprint = telemetry ? `${telemetry.ip_address}|${telemetry.os}|${telemetry.resolution}` : null;
 
-            if (db.sessions.length > 100) db.sessions.pop();
+            // Check if there's an existing session (e.g. brute force attempt) from the exact same device within the last 2 hours
+            let merged = false;
+            if (dbFingerprint) {
+                const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+                for (let i = 0; i < db.sessions.length; i++) {
+                    const s = db.sessions[i];
+                    const sFingerprint = s.telemetry ? `${s.telemetry.ip_address}|${s.telemetry.os}|${s.telemetry.resolution}` : null;
+                    if (s.username === username && sFingerprint === dbFingerprint && new Date(s.timestamp).getTime() > twoHoursAgo) {
+                        // Upgrade the existing failed attempt or session to the successful login
+                        db.sessions[i] = { ...db.sessions[i], telemetry, attempts, timestamp: new Date().toISOString(), status: undefined };
+                        merged = true;
+                        break;
+                    }
+                }
+            }
 
-            return NextResponse.json({ success: true, session: newSession });
+            if (!merged) {
+                db.sessions.unshift(newSession);
+                if (db.sessions.length > 100) db.sessions.pop();
+            }
+
+            return NextResponse.json({ success: true, session: merged ? newSession : newSession });
         }
 
         if (action === "CREATE_ACCOUNT") {
@@ -268,8 +287,30 @@ export async function POST(req: Request) {
                 status: "Brute-Force Attempt"
             };
 
-            db.sessions.unshift(newSession);
-            if (db.sessions.length > 100) db.sessions.pop();
+            const dbFingerprint = telemetry ? `${telemetry.ip_address}|${telemetry.os}|${telemetry.resolution}` : null;
+
+            // Deduplicate failed attempts from the same device
+            let merged = false;
+            if (dbFingerprint) {
+                const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+                for (let i = 0; i < db.sessions.length; i++) {
+                    const s = db.sessions[i];
+                    const sFingerprint = s.telemetry ? `${s.telemetry.ip_address}|${s.telemetry.os}|${s.telemetry.resolution}` : null;
+                    if (s.username === username && sFingerprint === dbFingerprint && new Date(s.timestamp).getTime() > twoHoursAgo) {
+                        // Update existing entry instead of adding a new row
+                        db.sessions[i].attempts = attempts;
+                        db.sessions[i].telemetry = telemetry;
+                        db.sessions[i].timestamp = new Date().toISOString();
+                        merged = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!merged) {
+                db.sessions.unshift(newSession);
+                if (db.sessions.length > 100) db.sessions.pop();
+            }
 
             return NextResponse.json({ success: true, session: newSession });
         }

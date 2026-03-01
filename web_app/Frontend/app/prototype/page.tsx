@@ -216,53 +216,64 @@ export default function PrototypePage() {
       const res = await fetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "VERIFY_LOGIN", payload: { username, password } }) });
       const data = await res.json();
 
-      // Collect telemetry and eval before processing success/failure
-      const delays = trackData.current.keystrokeDelays;
-      let avgKey = delays.length ? delays.reduce((a, b) => a + b) / delays.length : 0;
-      let currentMouseVel = trackData.current.mouseVelocity;
-      const loc = selectedLocationIdx >= 0 ? PRESET_LOCATIONS[selectedLocationIdx] : null;
-      const isCustomLoc = loc?.label === "Custom Location";
-      if (isBotMode) { avgKey = 0.005; currentMouseVel = 8500; }
-      else if (spoofIp || selectedLocationIdx >= 0) { avgKey = keystrokeDelayOverride; currentMouseVel = mouseVelocityOverride; }
-
-      const evaluationPayload = {
-        username: selectedUser || username,
-        ip_address: spoofIp || trackData.current.ip,
-        lat: selectedLocationIdx < 0 ? trackData.current.lat : (isCustomLoc ? parseFloat(customLat) || 0 : loc!.lat),
-        lon: selectedLocationIdx < 0 ? trackData.current.lon : (isCustomLoc ? parseFloat(customLon) || 0 : loc!.lon),
-        os: trackData.current.os,
-        resolution: `${window.innerWidth}x${window.innerHeight}`,
-        avg_keystroke_delay: avgKey,
-        mouse_velocity: currentMouseVel,
-        tab_switch_count: trackData.current.tabSwitches,
-        active_processes: activeProcesses,
-        bytes_sent: trackData.current.totalBytes,
-        login_attempts_override: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
-        attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
-        email: "nischalsharma2037@gmail.com"
-      };
-
-      try {
-        const evalRes = await fetch("http://localhost:8000/api/evaluate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(evaluationPayload)
-        });
-        const evalData = await evalRes.json();
-
-        if (evalData.status === "mfa_required") {
-          setAuthStep("otp");
-          setIsLoggingIn(false);
-          return;
-        }
-      } catch { /* proceed if network fails */ }
-
       if (data.success) {
+        // Collect telemetry and eval after processing success
+        const delays = trackData.current.keystrokeDelays;
+        let avgKey = delays.length ? delays.reduce((a, b) => a + b) / delays.length : 0;
+        let currentMouseVel = trackData.current.mouseVelocity;
+        const loc = selectedLocationIdx >= 0 ? PRESET_LOCATIONS[selectedLocationIdx] : null;
+        const isCustomLoc = loc?.label === "Custom Location";
+        if (isBotMode) { avgKey = 0.005; currentMouseVel = 8500; }
+        else if (spoofIp || selectedLocationIdx >= 0) { avgKey = keystrokeDelayOverride; currentMouseVel = mouseVelocityOverride; }
+
+        const evaluationPayload = {
+          username: selectedUser || username,
+          ip_address: spoofIp || trackData.current.ip,
+          lat: selectedLocationIdx < 0 ? trackData.current.lat : (isCustomLoc ? parseFloat(customLat) || 0 : loc!.lat),
+          lon: selectedLocationIdx < 0 ? trackData.current.lon : (isCustomLoc ? parseFloat(customLon) || 0 : loc!.lon),
+          os: trackData.current.os,
+          resolution: `${window.innerWidth}x${window.innerHeight}`,
+          avg_keystroke_delay: avgKey,
+          mouse_velocity: currentMouseVel,
+          tab_switch_count: trackData.current.tabSwitches,
+          active_processes: activeProcesses,
+          bytes_sent: trackData.current.totalBytes,
+          login_attempts_override: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
+          attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
+          email: "nischalsharma2037@gmail.com"
+        };
+
+        try {
+          const evalRes = await fetch("http://localhost:8000/api/evaluate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(evaluationPayload)
+          });
+          const evalData = await evalRes.json();
+
+          if (evalData.status === "mfa_required") {
+            setAuthStep("otp");
+            setIsLoggingIn(false);
+            return;
+          }
+        } catch { /* proceed if network fails */ }
+
         setIsLoggedIn(true);
         setStatus("🟢 Secure Session Active. Monitor Workspace...");
         setAuthMessage(null);
       } else {
         setAuthMessage({ type: "error", text: data.error || "Login failed." });
+
+        if (newAttemptCount > 5) {
+          // Trigger security alert email for extreme brute force
+          try {
+            await fetch("http://localhost:8000/api/alert-brute-force", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: "nischalsharma2037@gmail.com", username: username, attempts: newAttemptCount })
+            });
+          } catch { /* ok */ }
+        }
 
         if (newAttemptCount > 2 && !bruteForceReported) {
           setBruteForceReported(true);
@@ -313,10 +324,33 @@ export default function PrototypePage() {
     setIsLoggingIn(true);
     setOtpError("");
     try {
+      const delays = trackData.current.keystrokeDelays;
+      let avgKey = delays.length ? delays.reduce((a, b) => a + b) / delays.length : 0;
+      let currentMouseVel = trackData.current.mouseVelocity;
+      const loc = selectedLocationIdx >= 0 ? PRESET_LOCATIONS[selectedLocationIdx] : null;
+      const isCustomLoc = loc?.label === "Custom Location";
+      if (isBotMode) { avgKey = 0.005; currentMouseVel = 8500; }
+      else if (spoofIp || selectedLocationIdx >= 0) { avgKey = keystrokeDelayOverride; currentMouseVel = mouseVelocityOverride; }
+
+      const tel = {
+        ip_address: spoofIp || trackData.current.ip,
+        lat: selectedLocationIdx < 0 ? trackData.current.lat : (isCustomLoc ? parseFloat(customLat) || 0 : loc!.lat),
+        lon: selectedLocationIdx < 0 ? trackData.current.lon : (isCustomLoc ? parseFloat(customLon) || 0 : loc!.lon),
+        os: trackData.current.os,
+        resolution: `${window.innerWidth}x${window.innerHeight}`,
+        avg_keystroke_delay: avgKey,
+        mouse_velocity: currentMouseVel,
+        tab_switch_count: trackData.current.tabSwitches,
+        active_processes: activeProcesses,
+        bytes_sent: trackData.current.totalBytes,
+        protocol: "HTTPS",
+        attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts
+      };
+
       const res = await fetch("http://localhost:8000/api/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: selectedUser || username, otp: otpValue })
+        body: JSON.stringify({ username: selectedUser || username, otp: otpValue, ...tel })
       });
       const data = await res.json();
       if (data.status === "success") {
@@ -534,7 +568,7 @@ export default function PrototypePage() {
                     </div>
                   )}
 
-                  <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+                  <form onSubmit={handleLoginSubmit} className="space-y-4">
                     <div>
                       <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1.5 tracking-wider">Username</label>
                       <input suppressHydrationWarning type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" placeholder="e.g. marcus_aurelius" required />
@@ -551,7 +585,7 @@ export default function PrototypePage() {
                             <ShieldAlert className="w-4 h-4 shrink-0" /> Location permission required.
                           </div>
                         )}
-                        <button suppressHydrationWarning type="button" onClick={handleLoginSubmit} disabled={!username || !password || locationError || isLoggingIn} className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+                        <button suppressHydrationWarning type="submit" disabled={!username || !password || locationError || isLoggingIn} className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
                           {isLoggingIn ? (
                             <>
                               <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>

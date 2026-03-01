@@ -307,7 +307,7 @@ export default function App() {
         const data = JSON.parse(event.data);
 
         const newSession: Session = {
-          id: `live-${data.username}`,
+          id: `live-${data.username}-${Date.now()}`,
           timestamp: new Date().toISOString(),
           user: {
             name: data.username || "Unknown",
@@ -348,11 +348,20 @@ export default function App() {
           }
         };
 
+        // Fingerprint = IP + OS + Resolution. Same fingerprint = same session (update in-place).
+        const fingerprint = `${data.ip_address}|${data.os}|${data.resolution}`;
+
         setSessions((prev) => {
-          const existingIndex = prev.findIndex(s => s.id === newSession.id);
-          if (existingIndex !== -1) {
+          // Find existing live session with same username AND same fingerprint
+          const existingIdx = prev.findIndex(s =>
+            s.user.name === newSession.user.name &&
+            s.id.startsWith('live-') &&
+            `${s.user.ip}|${s.modules.context.os}|${s.modules.context.res}` === fingerprint
+          );
+          if (existingIdx !== -1) {
+            // Update existing session in-place
             const updated = [...prev];
-            updated[existingIndex] = newSession;
+            updated[existingIdx] = { ...newSession, id: prev[existingIdx].id, timestamp: prev[existingIdx].timestamp };
             return updated;
           }
           return [newSession, ...prev];
@@ -426,19 +435,31 @@ export default function App() {
                 }
               };
 
+              // Match by ID first, then by username+fingerprint to avoid duplicates
               const existingIndex = updated.findIndex(u => u.id === newSession.id);
+              const dbFingerprint = `${newSession.user.ip}|${newSession.modules.context.os}|${newSession.modules.context.res}`;
+              
               if (existingIndex !== -1) {
-                updated[existingIndex] = newSession;
+                // Completely replace the object reference to trigger UI re-render of status
+                updated[existingIndex] = { ...newSession, id: newSession.id };
+                changed = true;
               } else {
-                // Check if there's a WebSocket session for this user that should be replaced with the DB record
-                const liveIndex = updated.findIndex(u => u.user.name === newSession.user.name && u.id.startsWith('live-'));
-                if (liveIndex !== -1) {
-                  updated[liveIndex] = newSession;
+                // Check if there's a live session with same username + same device fingerprint
+                const fpIndex = updated.findIndex(u =>
+                  u.user.name === newSession.user.name &&
+                  `${u.user.ip}|${u.modules.context.os}|${u.modules.context.res}` === dbFingerprint && 
+                  u.status === 'Live'
+                );
+                
+                if (fpIndex !== -1) {
+                  // Upgrade the Live session to the Locked DB record 
+                  updated[fpIndex] = { ...newSession, id: newSession.id }; // Overwrite with new Locked status and DB ID
+                  changed = true;
                 } else {
                   updated.unshift(newSession);
+                  changed = true;
                 }
               }
-              changed = true;
             });
             return changed ? updated : prev;
           });
@@ -515,18 +536,7 @@ export default function App() {
       return matchesSearch && matchesRisk && matchesTime;
     });
 
-    // Sort by timestamp descending BEFORE dedup so newest per user wins
-    filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    // Deduplicate by username — keep first occurrence (newest) per user
-    const seen = new Set<string>();
-    const deduped = filtered.filter((s: Session) => {
-      if (seen.has(s.user.name)) return false;
-      seen.add(s.user.name);
-      return true;
-    });
-
-    return deduped;
+    return filtered;
   }, [search, filterRisk, timeRange, customStart, customEnd, sessions]);
 
   // --- ANALYTICS COMPUTED DATA ---
@@ -1222,50 +1232,105 @@ export default function App() {
             onClick={() => setIsCustomModalOpen(false)}
           ></div>
 
-          <div className="relative bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-md shadow-[0_20px_50px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] overflow-hidden transform transition-all">
-            <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500"></div>
+          <div className="relative bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-[0_20px_50px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] overflow-hidden transform transition-all">
+            <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-purple-500"></div>
 
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-transparent">
               <div className="flex items-center gap-2.5">
-                <div className="bg-blue-100 dark:bg-blue-500/20 p-1.5 rounded-lg">
-                  <CalendarDays className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-2 rounded-xl shadow-lg shadow-blue-500/20">
+                  <CalendarDays className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Custom Time Range</h3>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Custom Time Range</h3>
+                  <p className="text-xs text-slate-500">Select a precise date and time window</p>
+                </div>
               </div>
               <button
                 onClick={() => setIsCustomModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-5">
-              <div className="relative group">
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Start Date & Time</label>
-                <input
-                  type="datetime-local"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
-                />
+            {/* Quick Presets */}
+            <div className="px-6 pt-5 pb-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Quick Presets</p>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: 'Last Hour', hours: 1 },
+                  { label: 'Last 12h', hours: 12 },
+                  { label: 'Last 24h', hours: 24 },
+                  { label: 'Last 7d', hours: 168 },
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={() => {
+                      const end = new Date();
+                      const start = new Date(end.getTime() - preset.hours * 60 * 60 * 1000);
+                      setCustomStart(start.toISOString().slice(0, 16));
+                      setCustomEnd(end.toISOString().slice(0, 16));
+                    }}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 transition-all"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-6 pb-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 relative">
+                  <label className="block text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                    Start
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={customStart}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-sm"
+                  />
+                </div>
+                <div className="pt-6">
+                  <ArrowRight className="w-5 h-5 text-slate-400" />
+                </div>
+                <div className="flex-1 relative">
+                  <label className="block text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+                    End
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={customEnd}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all font-medium text-sm"
+                  />
+                </div>
               </div>
 
-              <div className="relative group">
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">End Date & Time</label>
-                <input
-                  type="datetime-local"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
-                />
-              </div>
+              {customStart && customEnd && new Date(customStart) <= new Date(customEnd) && (
+                <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/40 rounded-xl p-3 flex items-center gap-3">
+                  <Clock className="w-4 h-4 text-blue-500 shrink-0" />
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    <span className="font-bold">Duration:</span>{' '}
+                    {(() => {
+                      const diff = new Date(customEnd).getTime() - new Date(customStart).getTime();
+                      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                      return `${days > 0 ? `${days}d ` : ''}${hours}h ${mins}m`;
+                    })()}
+                  </p>
+                </div>
+              )}
 
               {customStart && customEnd && new Date(customStart) > new Date(customEnd) && (
-                <p className="text-xs text-rose-500 flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  Start date must be before end date.
-                </p>
+                <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-800/40 rounded-xl p-3 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                  <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">Start date must be before end date.</p>
+                </div>
               )}
             </div>
 
@@ -1279,8 +1344,9 @@ export default function App() {
               <button
                 onClick={applyCustomDate}
                 disabled={!customStart || !customEnd || new Date(customStart) > new Date(customEnd)}
-                className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/30 transition-all active:scale-95"
+                className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/30 transition-all active:scale-95 flex items-center gap-2"
               >
+                <CalendarDays className="w-4 h-4" />
                 Apply Range
               </button>
             </div>

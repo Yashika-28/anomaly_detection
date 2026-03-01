@@ -7,6 +7,7 @@ import smtplib
 from email.message import EmailMessage
 import os
 from dotenv import load_dotenv
+from email_template import get_otp_email_html, get_otp_email_text
 
 load_dotenv()
 
@@ -18,10 +19,11 @@ active_otps = {}
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "neurometric.alert@gmail.com")
 SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD", "1234")
 
-def send_otp_email(target_email: str, otp: str):
+def send_otp_email(target_email: str, otp: str, username: str = "User"):
     msg = EmailMessage()
-    msg.set_content(f"Your SecureBank verification code is: {otp}\n\nDo not share this code with anyone. This was triggered by unusual login behavior.")
-    msg['Subject'] = 'UEBA Security Alert: Verification Required'
+    msg.set_content(get_otp_email_text(otp, username))
+    msg.add_alternative(get_otp_email_html(otp, username), subtype='html')
+    msg['Subject'] = '🔐 NeurometricShield: Verification Code Required'
     msg['From'] = SENDER_EMAIL
     msg['To'] = target_email
 
@@ -121,7 +123,7 @@ async def evaluate_login(payload: LoginPayload):
         # Generate and send OTP
         otp = str(random.randint(100000, 999999))
         active_otps[payload.username] = otp
-        send_otp_email(payload.email, otp)
+        send_otp_email(payload.email, otp, payload.username)
     elif is_bot or is_hacker:
         full_record["risk_status"] = "CRITICAL ANOMALY (Blocked)"
         full_record["color"] = "#dc2626" # Red
@@ -138,6 +140,18 @@ async def evaluate_login(payload: LoginPayload):
 class VerifyPayload(BaseModel):
     username: str
     otp: str
+    ip_address: str = "Verified"
+    lat: float = 0.0
+    lon: float = 0.0
+    os: str = "Unknown"
+    resolution: str = "Unknown"
+    avg_keystroke_delay: float = 0.0
+    mouse_velocity: float = 0.0
+    tab_switch_count: int = 0
+    active_processes: str = "Identity Confirmed"
+    bytes_sent: int = 0
+    protocol: str = "HTTPS"
+    attempts: int = 1
 
 @app.post("/api/verify-otp")
 async def verify_otp(payload: VerifyPayload):
@@ -152,11 +166,40 @@ async def verify_otp(payload: VerifyPayload):
             "type": "FINAL_EVALUATION",
             "risk_status": "MFA PASSED (Authenticated)",
             "color": "#16a34a",
-            "lat": 0, "lon": 0, "ip_address": "Verified", "os": "-", "protocol": "-", "bytes_sent": 0, "avg_keystroke_delay": 0, "mouse_velocity": 0, "tab_switch_count": 0, "active_processes": "Identity Confirmed"
+            "lat": payload.lat, "lon": payload.lon, "ip_address": payload.ip_address, 
+            "os": payload.os, "resolution": payload.resolution, 
+            "protocol": payload.protocol, "bytes_sent": payload.bytes_sent, 
+            "avg_keystroke_delay": payload.avg_keystroke_delay, "mouse_velocity": payload.mouse_velocity, 
+            "tab_switch_count": payload.tab_switch_count, "active_processes": payload.active_processes,
+            "attempts": payload.attempts
         })
         return {"status": "success"}
-    else:
         return {"status": "failed", "message": "Invalid OTP"}
+
+class AlertPayload(BaseModel):
+    email: str
+    username: str
+    attempts: int
+
+@app.post("/api/alert-brute-force")
+async def alert_brute_force(payload: AlertPayload):
+    msg = EmailMessage()
+    msg.set_content(f"SECURITY ALERT\n\nThere have been {payload.attempts} failed login attempts for the account '{payload.username}'.\n\nIf this was not you, someone may be trying to guess your password. We recommend changing your password immediately.")
+    msg['Subject'] = '🚨 NeurometricShield: Critical Security Alert (Brute Force Detected)'
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = payload.email
+
+    try:
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        print(f"Brute force alert sent successfully to {payload.email}")
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Failed to send alert email: {e}")
+        return {"status": "error"}
+
 
 @app.websocket("/ws/soc")
 async def websocket_soc_endpoint(websocket: WebSocket):
