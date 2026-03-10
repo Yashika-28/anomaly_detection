@@ -4,6 +4,23 @@ import { NextResponse } from 'next/server';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const globalDb: any = globalThis as any;
 
+// Per-user trusted location check (each user has their own trusted locations stored in the DB)
+const TRUST_RADIUS_KM = 200; // km
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function isUserTrustedLocation(lat: number, lon: number, trusted: { lat: number; lon: number }[]): boolean {
+    if (!lat && !lon) return true; // no location data — can't judge
+    if (!trusted || trusted.length === 0) return true; // no list configured — allow
+    return trusted.some(t => haversineKm(lat, lon, t.lat, t.lon) <= TRUST_RADIUS_KM);
+}
+
 if (!globalDb.mockDb) {
     globalDb.mockDb = {
         users: {
@@ -11,6 +28,11 @@ if (!globalDb.mockDb) {
                 password: "password123",
                 email: "nischalsharma2037@gmail.com",
                 attempts: 1,
+                trustedLocations: [
+                    { lat: 48.8566, lon: 2.3522, label: "Paris (Home)" },
+                    { lat: 51.5074, lon: -0.1278, label: "London (Office)" },
+                    { lat: 50.1109, lon: 8.6821, label: "Frankfurt (Travel)" }
+                ],
                 telemetry: {
                     ip_address: "192.168.1.15",
                     lat: 48.8566,
@@ -29,6 +51,10 @@ if (!globalDb.mockDb) {
                 password: "admin_password",
                 email: "nischalsharma2037@gmail.com",
                 attempts: 4,
+                trustedLocations: [
+                    { lat: 34.0522, lon: -118.2437, label: "Los Angeles (HQ)" },
+                    { lat: 37.7749, lon: -122.4194, label: "San Francisco (DC)" }
+                ],
                 telemetry: {
                     ip_address: "10.0.0.84",
                     lat: 34.0522,
@@ -47,6 +73,10 @@ if (!globalDb.mockDb) {
                 password: "secure456",
                 email: "nischalsharma2037@gmail.com",
                 attempts: 2,
+                trustedLocations: [
+                    { lat: 40.7128, lon: -74.006, label: "New York (Home)" },
+                    { lat: 42.3601, lon: -71.0589, label: "Boston (Office)" }
+                ],
                 telemetry: {
                     ip_address: "192.168.1.15",
                     lat: 40.7128,
@@ -65,6 +95,11 @@ if (!globalDb.mockDb) {
                 password: "pass789",
                 email: "nischalsharma2037@gmail.com",
                 attempts: 6,
+                trustedLocations: [
+                    { lat: 1.3521, lon: 103.8198, label: "Singapore (Home)" },
+                    { lat: 22.3193, lon: 114.1694, label: "Hong Kong (Office)" },
+                    { lat: 35.6762, lon: 139.6503, label: "Tokyo (Client)" }
+                ],
                 telemetry: {
                     ip_address: "10.0.0.84",
                     lat: 55.7558,
@@ -199,6 +234,20 @@ export async function POST(req: Request) {
             const overrideAttempts = telemetry?.login_attempts_override || 0;
             const attempts = overrideAttempts > 1 ? overrideAttempts : (db.users[username].attempts || 1);
 
+            // Location trust check — use THIS user's own trusted locations
+            const loginLat = telemetry?.lat || 0;
+            const loginLon = telemetry?.lon || 0;
+            const userTrusted = db.users[username]?.trustedLocations || [];
+            if (!isUserTrustedLocation(loginLat, loginLon, userTrusted)) {
+                if (Array.isArray(telemetry.risk_status)) {
+                    if (!telemetry.risk_status.includes('unknown_location')) {
+                        telemetry.risk_status.push('unknown_location');
+                    }
+                } else {
+                    telemetry.risk_status = ['unknown_location'];
+                }
+            }
+
             const newSession = {
                 id: `${username}-${Date.now()}`,
                 username,
@@ -328,7 +377,8 @@ export async function POST(req: Request) {
                     lat: userData.telemetry.lat,
                     lon: userData.telemetry.lon
                 } : null,
-                riskStatus: userData.telemetry?.risk_status || []
+                riskStatus: userData.telemetry?.risk_status || [],
+                trustedLocations: userData.trustedLocations || []
             }));
             return NextResponse.json({ success: true, users: userList });
         }

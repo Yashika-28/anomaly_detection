@@ -32,6 +32,7 @@ export type SessionModules = {
     trajectory: string;
     pasteDetected: boolean;
     human: boolean;
+    typingWpm: number;
   };
   network: {
     ipType: string;
@@ -222,7 +223,8 @@ const SAMPLE_SESSIONS: Session[] = [
         velocity: "5200 px/s",
         trajectory: "Inhuman / Instant",
         pasteDetected: true,
-        human: false
+        human: false,
+        typingWpm: 0
       },
       network: {
         ipType: "Data Center (AWS)",
@@ -261,7 +263,8 @@ const SAMPLE_SESSIONS: Session[] = [
         velocity: "840 px/s",
         trajectory: "Natural Human",
         pasteDetected: false,
-        human: true
+        human: true,
+        typingWpm: 68
       },
       network: {
         ipType: "Residential (Orange SA)",
@@ -285,7 +288,7 @@ const formatBytes = (bytes: number) => {
 
 export default function App() {
   const [sessions, setSessions] = useState<Session[]>(SAMPLE_SESSIONS);
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterRisk, setFilterRisk] = useState('All');
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -293,6 +296,12 @@ export default function App() {
   const isDarkMode = theme === 'dark';
   const [showStats, setShowStats] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
+
+  // Derive the active session live from the sessions array so the side panel auto-updates
+  const selectedSession = useMemo(
+    () => sessions.find(s => s.id === selectedSessionId) ?? null,
+    [sessions, selectedSessionId]
+  );
 
   // WebSocket Integration
   useEffect(() => {
@@ -306,6 +315,23 @@ export default function App() {
       socket.onmessage = (event: MessageEvent) => {
         const data = JSON.parse(event.data);
 
+        // Handle SESSION_ENDED: flip any matching Live session to Locked
+        if (data.type === "SESSION_ENDED") {
+          setSessions(prev => {
+            const fingerprint = `${data.ip_address}|${data.os}|${data.resolution}`;
+            const idx = prev.findIndex(s =>
+              s.user.name === data.username &&
+              s.status === 'Live' &&
+              `${s.user.ip}|${s.modules.context.os}|${s.modules.context.res}` === fingerprint
+            );
+            if (idx === -1) return prev;
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], status: 'Locked' };
+            return updated;
+          });
+          return;
+        }
+
         const newSession: Session = {
           id: `live-${data.username}-${Date.now()}`,
           timestamp: new Date().toISOString(),
@@ -316,8 +342,8 @@ export default function App() {
             attempts: data.attempts || 1
           },
           status: data.type === "LIVE_UPDATE" ? "Live" : "Locked",
-          verdict: data.risk_status.includes("SAFE") ? "Safe" :
-            data.risk_status.includes("ANOMALY") ? "Critical" : "Warning",
+          verdict: (data.risk_status || "").toString().toUpperCase().includes("CRITICAL") ? "Critical" :
+            (data.risk_status || "").toString().toUpperCase().includes("WARNING") || data.risk_status?.includes("ANOMALY") ? "Warning" : "Safe",
           geo: {
             lat: data.lat || 0,
             lng: data.lon || 0,
@@ -329,21 +355,44 @@ export default function App() {
               os: data.os || "Unknown",
               res: data.resolution || "Unknown",
               devToolsOpen: data.tab_switch_count > 2,
-              match: true
+              // Fingerprint match: true only if this is a known returning device (live injections are always unverified)
+              match: data.type !== "LIVE_UPDATE" && !data.risk_status?.includes("ANOMALY")
             },
             hci: {
               velocity: `${data.mouse_velocity || 0} px/s`,
-              trajectory: data.mouse_velocity > 2000 ? "Erratic" : "Human",
+              trajectory: data.mouse_velocity > 2000 ? "Erratic / Inhuman" : "Natural Human",
               pasteDetected: data.avg_keystroke_delay < 0.05,
-              human: !data.risk_status.includes("Bot")
+              // Human: false if bot indicators are present
+              human: data.mouse_velocity <= 3000 && data.avg_keystroke_delay >= 0.05 && !data.risk_status?.includes("ANOMALY"),
+              typingWpm: data.typing_wpm || (data.avg_keystroke_delay > 0 ? Math.round((60 / data.avg_keystroke_delay) / 5) : 0)
             },
             network: {
-              ipType: "Residential",
-              proxy: "None",
+              // IP type: private/datacenter ranges → Data Center, otherwise Residential
+              ipType: (() => {
+                const ip = data.ip_address || "";
+                if (ip.startsWith("10.") || ip.startsWith("192.168.") || ip.startsWith("172.") || ip.startsWith("0.")) return "Private / Internal";
+                if (data.risk_status?.includes("ANOMALY") || data.mouse_velocity > 3000) return "Data Center / Hosting";
+                return "Residential ISP";
+              })(),
+              // Proxy: detect from active processes
+              proxy: (() => {
+                const procs = data.active_processes || "";
+                if (procs.includes("Tor")) return "Tor Network";
+                if (procs.includes("Wireshark") || procs.includes("nmap")) return "Packet Sniffer";
+                if (procs.includes("Burp")) return "Burp Suite Proxy";
+                if (procs.includes("VPN")) return "VPN Detected";
+                return "None";
+              })(),
               protocol: data.protocol || "WSS",
-              download: "0 B",
+              download: formatBytes(data.bytes_received || 0),
               upload: formatBytes(data.bytes_sent || 0),
-              risk: data.risk_status.includes("ANOMALY") ? "High" : "Low"
+              // Risk: High for anomaly, high data, suspicious location, or high mouse velocity
+              risk: (
+                data.risk_status?.includes("ANOMALY") ||
+                data.risk_status?.includes("unknown_location") ||
+                (data.bytes_sent || 0) > 100_000_000 ||
+                data.mouse_velocity > 3000
+              ) ? "High" : (data.mouse_velocity > 1500 || (data.bytes_sent || 0) > 10_000_000) ? "Medium" : "Low"
             }
           }
         };
@@ -352,18 +401,20 @@ export default function App() {
         const fingerprint = `${data.ip_address}|${data.os}|${data.resolution}`;
 
         setSessions((prev) => {
-          // Find existing live session with same username AND same fingerprint
+          // Only merge into an actively LIVE session — never overwrite a Locked/completed session
           const existingIdx = prev.findIndex(s =>
             s.user.name === newSession.user.name &&
+            s.status === 'Live' &&
             s.id.startsWith('live-') &&
             `${s.user.ip}|${s.modules.context.os}|${s.modules.context.res}` === fingerprint
           );
           if (existingIdx !== -1) {
-            // Update existing session in-place
+            // Update existing live session in-place
             const updated = [...prev];
             updated[existingIdx] = { ...newSession, id: prev[existingIdx].id, timestamp: prev[existingIdx].timestamp };
             return updated;
           }
+          // No matching live session found — this is a new session (fresh login)
           return [newSession, ...prev];
         });
       };
@@ -390,9 +441,11 @@ export default function App() {
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             data.sessions.forEach((s: any) => {
-              const isAnomaly = s.telemetry?.risk_status?.some((r: string) => r.includes("ANOMALY")) || s.attempts > 3;
-              const verdict = s.telemetry?.risk_status?.includes("SAFE") && s.attempts <= 3 ? "Safe" :
-                isAnomaly ? "Critical" : "Warning";
+              const isAnomaly = s.telemetry?.risk_status?.some((r: string) => r.includes("ANOMALY") || r.includes("UNKNOWN"));
+              const riskStr = s.telemetry?.risk_status?.join(" ").toUpperCase() || "";
+              let verdict: "Safe" | "Warning" | "Critical" = "Safe";
+              if (riskStr.includes("CRITICAL")) verdict = "Critical";
+              else if (riskStr.includes("WARNING") || isAnomaly) verdict = "Warning";
 
               const newSession: Session = {
                 id: s.id,
@@ -416,21 +469,38 @@ export default function App() {
                     os: s.telemetry?.os || "Unknown",
                     res: s.telemetry?.resolution || "Unknown",
                     devToolsOpen: s.telemetry?.tab_switch_count > 2 || false,
-                    match: true
+                    match: !isAnomaly && (s.telemetry?.avg_keystroke_delay || 1) >= 0.05
                   },
                   hci: {
                     velocity: `${s.telemetry?.mouse_velocity || 0} px/s`,
-                    trajectory: (s.telemetry?.mouse_velocity || 0) > 2000 ? "Erratic" : "Human",
+                    trajectory: (s.telemetry?.mouse_velocity || 0) > 2000 ? "Erratic / Inhuman" : "Natural Human",
                     pasteDetected: (s.telemetry?.avg_keystroke_delay || 1) < 0.05,
-                    human: !(s.telemetry?.risk_status?.includes("Bot"))
+                    human: (s.telemetry?.mouse_velocity || 0) <= 3000 && (s.telemetry?.avg_keystroke_delay || 1) >= 0.05 && !isAnomaly,
+                    typingWpm: s.telemetry?.typing_wpm || ((s.telemetry?.avg_keystroke_delay || 0) > 0 ? Math.round((60 / s.telemetry.avg_keystroke_delay) / 5) : 0)
                   },
                   network: {
-                    ipType: "Residential",
-                    proxy: "None",
+                    ipType: (() => {
+                      const ip = s.telemetry?.ip_address || "";
+                      if (ip.startsWith("10.") || ip.startsWith("192.168.") || ip.startsWith("172.")) return "Private / Internal";
+                      if (isAnomaly || (s.telemetry?.mouse_velocity || 0) > 3000) return "Data Center / Hosting";
+                      return "Residential ISP";
+                    })(),
+                    proxy: (() => {
+                      const procs = s.telemetry?.active_processes || "";
+                      if (procs.includes("Tor")) return "Tor Network";
+                      if (procs.includes("Wireshark") || procs.includes("nmap")) return "Packet Sniffer";
+                      if (procs.includes("Burp")) return "Burp Suite Proxy";
+                      return "None";
+                    })(),
                     protocol: s.telemetry?.protocol || "HTTPS",
-                    download: "0 B",
+                    download: formatBytes(s.telemetry?.bytes_received || 0),
                     upload: formatBytes(s.telemetry?.bytes_sent || 0),
-                    risk: verdict === "Critical" ? "High" : "Low"
+                    risk: (
+                      isAnomaly ||
+                      s.telemetry?.risk_status?.includes("unknown_location") ||
+                      (s.telemetry?.bytes_sent || 0) > 100_000_000 ||
+                      (s.telemetry?.mouse_velocity || 0) > 3000
+                    ) ? "High" : ((s.telemetry?.mouse_velocity || 0) > 1500 || (s.telemetry?.bytes_sent || 0) > 10_000_000) ? "Medium" : "Low"
                   }
                 }
               };
@@ -438,7 +508,7 @@ export default function App() {
               // Match by ID first, then by username+fingerprint to avoid duplicates
               const existingIndex = updated.findIndex(u => u.id === newSession.id);
               const dbFingerprint = `${newSession.user.ip}|${newSession.modules.context.os}|${newSession.modules.context.res}`;
-              
+
               if (existingIndex !== -1) {
                 // Completely replace the object reference to trigger UI re-render of status
                 updated[existingIndex] = { ...newSession, id: newSession.id };
@@ -447,10 +517,10 @@ export default function App() {
                 // Check if there's a live session with same username + same device fingerprint
                 const fpIndex = updated.findIndex(u =>
                   u.user.name === newSession.user.name &&
-                  `${u.user.ip}|${u.modules.context.os}|${u.modules.context.res}` === dbFingerprint && 
+                  `${u.user.ip}|${u.modules.context.os}|${u.modules.context.res}` === dbFingerprint &&
                   u.status === 'Live'
                 );
-                
+
                 if (fpIndex !== -1) {
                   // Upgrade the Live session to the Locked DB record 
                   updated[fpIndex] = { ...newSession, id: newSession.id }; // Overwrite with new Locked status and DB ID
@@ -491,7 +561,7 @@ export default function App() {
   const [customEnd, setCustomEnd] = useState('');
 
   const handleRowClick = (session: Session) => {
-    setSelectedSession(session);
+    setSelectedSessionId(session.id);
     setIsPanelOpen(true);
   };
 
@@ -567,10 +637,9 @@ export default function App() {
       // Threat types
       if (!s.modules.hci.human) threatTypes.bot++;
       if (s.modules.network.proxy !== 'None') threatTypes.vpnProxy++;
-      if (s.modules.context.devToolsOpen) threatTypes.devTools++;
       if (s.modules.hci.pasteDetected) threatTypes.pasteInput++;
       if (s.modules.network.risk === 'High') threatTypes.highData++;
-      if ((s.user.attempts || 0) > 3) threatTypes.bruteForce++;
+      if ((s.user.attempts || 0) >= 3) threatTypes.bruteForce++;
 
       // Location grouping
       const locKey = `${s.geo.city}-${s.geo.country}`;
@@ -1086,18 +1155,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* DevTools Detection */}
-                    <div className="flex items-center justify-between p-2.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2">
-                        <Code className="w-4 h-4 text-slate-500" />
-                        <span className="text-xs text-slate-700 dark:text-slate-300">Browser DevTools</span>
-                      </div>
-                      {selectedSession.modules.context.devToolsOpen ? (
-                        <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/10 px-2 py-0.5 rounded border border-rose-300 dark:border-rose-500/20 animate-pulse">OPENED (RISK)</span>
-                      ) : (
-                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">CLOSED</span>
-                      )}
-                    </div>
+
 
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-800/50 flex items-center justify-between">
                       <span className="text-xs text-slate-500 dark:text-slate-400">Fingerprint Match:</span>
@@ -1118,13 +1176,21 @@ export default function App() {
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-200">Behavioral Biometrics</h3>
                   </div>
                   <div className="p-4 space-y-4">
+                    {/* Avg Typing Speed + Mouse Speed */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-white dark:bg-slate-900/50 p-2.5 rounded border border-slate-200 dark:border-slate-800">
-                        <p className="text-[10px] text-slate-500 uppercase font-semibold">Mouse Trajectory</p>
-                        <p className="text-sm text-slate-800 dark:text-slate-300 mt-0.5">{selectedSession.modules.hci.trajectory}</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-semibold">Avg Typing Speed</p>
+                        <p className={`text-sm font-mono font-bold mt-0.5 ${selectedSession.modules.hci.typingWpm === 0
+                          ? 'text-slate-400 dark:text-slate-500'
+                          : selectedSession.modules.hci.typingWpm > 120
+                            ? 'text-rose-600 dark:text-rose-400'
+                            : 'text-emerald-600 dark:text-emerald-400'
+                          }`}>
+                          {selectedSession.modules.hci.typingWpm > 0 ? `${selectedSession.modules.hci.typingWpm} WPM` : '— WPM'}
+                        </p>
                       </div>
                       <div className="bg-white dark:bg-slate-900/50 p-2.5 rounded border border-slate-200 dark:border-slate-800">
-                        <p className="text-[10px] text-slate-500 uppercase font-semibold">Pointer Velocity</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-semibold">Mouse Speed</p>
                         <p className="text-sm text-slate-800 dark:text-slate-300 font-mono mt-0.5">{selectedSession.modules.hci.velocity}</p>
                       </div>
                     </div>

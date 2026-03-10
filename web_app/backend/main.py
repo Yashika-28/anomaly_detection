@@ -4,12 +4,34 @@ from pydantic import BaseModel
 import datetime
 import random
 import smtplib
+import math
 from email.message import EmailMessage
 import os
 from dotenv import load_dotenv
 from email_template import get_otp_email_html, get_otp_email_text
 
 load_dotenv()
+
+# --- Trusted office/home locations (global fallback) ---
+# Each user has their own trusted locations stored in the frontend DB.
+# If user_trusted_locations is NOT passed in the evaluate payload,
+# no location check is done (the DB-side already flagged it).
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+def is_trusted_location(lat, lon, trusted_locs):
+    """Check if lat/lon is within 200km of any location in trusted_locs list."""
+    if not trusted_locs:
+        return True  # no list provided — skip location check
+    if not lat and not lon:
+        return True
+    return any(haversine_km(lat, lon, t['lat'], t['lon']) <= 200 for t in trusted_locs)
+
 
 app = FastAPI()
 
@@ -68,20 +90,45 @@ async def websocket_tracking_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
+
+            # Handle logout signal separately
+            if data.get("type") == "LOGOUT_SIGNAL":
+                logout_event = {
+                    "type": "SESSION_ENDED",
+                    "username": data.get("username", "Unknown"),
+                    "ip_address": data.get("ip_address", ""),
+                    "os": data.get("os", ""),
+                    "resolution": data.get("resolution", ""),
+                    "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                    "risk_status": "Session Ended",
+                    "color": "#64748b"
+                }
+                await manager.broadcast_to_soc(logout_event)
+                continue
+
             data["time"] = datetime.datetime.now().strftime("%H:%M:%S")
             data["type"] = "LIVE_UPDATE"
             data["risk_status"] = "Monitoring..."
             data["color"] = "#d97706" # Orange color for monitoring
-            
-            # Add mock network data so the table isn't empty during live tracking
-            data["bytes_sent"] = random.randint(500, 2000)
             data["protocol"] = "TCP"
+            # Preserve bytes_sent and bytes_received from client
+            if "bytes_sent" not in data:
+                data["bytes_sent"] = 0
+            if "bytes_received" not in data:
+                data["bytes_received"] = 0
             
             await manager.broadcast_to_soc(data)
     except WebSocketDisconnect:
         pass
 
 # --- 2. FINAL EVALUATION ENDPOINT ---
+class CustomThresholds(BaseModel):
+    bot_mouse_velocity: float = 3000
+    bot_keystroke_delay: float = 0.05
+    suspicious_attempts: int = 4      # OTP triggered at this many attempts
+    brute_force_attempts: int = 6     # Brute-force critical at this many attempts
+    high_data_mb: float = 50
+
 class LoginPayload(BaseModel):
     username: str
     ip_address: str
@@ -92,11 +139,15 @@ class LoginPayload(BaseModel):
     avg_keystroke_delay: float
     mouse_velocity: float
     tab_switch_count: int
-    bytes_sent: int 
+    bytes_sent: int
+    bytes_received: int = 0
     active_processes: str = ""
     attempts: int
     login_attempts_override: int
     email: str | None = "nischalsharma2037@gmail.com"
+    custom_thresholds: CustomThresholds | None = None
+    # Per-user trusted locations for location-risk check (fetched from DB by prototype)
+    user_trusted_locations: list | None = None
 
 @app.post("/api/evaluate")
 async def evaluate_login(payload: LoginPayload):
@@ -107,31 +158,51 @@ async def evaluate_login(payload: LoginPayload):
     full_record["type"] = "FINAL_EVALUATION"
     full_record["protocol"] = "HTTPS (POST)"
 
+    # Use custom thresholds from payload if provided, otherwise use defaults
+    t = payload.custom_thresholds or CustomThresholds()
+    
     # AI EVALUATION LOGIC WITH ADAPTIVE MFA
-    is_bot = payload.avg_keystroke_delay < 0.05 or payload.mouse_velocity > 3000
-    is_hacker = "Tor" in payload.active_processes or "Wireshark" in payload.active_processes or "nmap" in payload.active_processes or "Burp" in payload.active_processes or "Hydra" in payload.active_processes
-    has_excessive_attempts = payload.attempts > 2 or payload.login_attempts_override > 2
+    is_bot = payload.avg_keystroke_delay < t.bot_keystroke_delay or payload.mouse_velocity > t.bot_mouse_velocity
+    is_hacker = any(tool in payload.active_processes for tool in ["Tor", "Wireshark", "nmap", "Burp", "Hydra", "Metasploit", "Netcat"])
+    has_excessive_attempts = payload.attempts >= t.suspicious_attempts or payload.login_attempts_override >= t.suspicious_attempts
+    is_brute_force = payload.attempts >= t.brute_force_attempts or payload.login_attempts_override >= t.brute_force_attempts
     is_distracted = "Slack" in payload.active_processes or payload.tab_switch_count > 2
+    bytes_sent_mb = payload.bytes_sent / (1024 * 1024)
+    is_high_data = bytes_sent_mb >= t.high_data_mb
 
-    # Priority: If excessive login attempts, ALWAYS trigger MFA (never block)
-    # This prevents denial-of-service by brute-forcing someone's account
-    if has_excessive_attempts or is_distracted:
+    # Priority: brute force / high data first (definite MFA), then suspicious attempts, then bot/hacker
+    if is_brute_force or is_high_data:
         full_record["risk_status"] = "WARNING (MFA Triggered)"
-        full_record["color"] = "#f59e0b" # Orange/Amber
+        full_record["color"] = "#f59e0b"
         action = "mfa_required"
-        
-        # Generate and send OTP
+        otp = str(random.randint(100000, 999999))
+        active_otps[payload.username] = otp
+        send_otp_email(payload.email, otp, payload.username)
+    elif has_excessive_attempts:
+        full_record["risk_status"] = "WARNING (MFA Triggered)"
+        full_record["color"] = "#f59e0b"
+        action = "mfa_required"
         otp = str(random.randint(100000, 999999))
         active_otps[payload.username] = otp
         send_otp_email(payload.email, otp, payload.username)
     elif is_bot or is_hacker:
         full_record["risk_status"] = "CRITICAL ANOMALY (Blocked)"
-        full_record["color"] = "#dc2626" # Red
+        full_record["color"] = "#dc2626"
         action = "blocked"
+    elif is_distracted:
+        # Distracted = warning but not blocked or OTP required
+        full_record["risk_status"] = "WARNING (Distracted User)"
+        full_record["color"] = "#f59e0b"
+        action = "mfa_required"
     else:
         full_record["risk_status"] = "SAFE (Authenticated)"
-        full_record["color"] = "#16a34a" # Green
+        full_record["color"] = "#16a34a"
         action = "success"
+
+    # Location trust check — use user's own trusted locations if provided
+    is_unknown_location = not is_trusted_location(payload.lat, payload.lon, payload.user_trusted_locations or [])
+    if is_unknown_location:
+        full_record["risk_status"] = str(full_record.get("risk_status", "")) + " | UNKNOWN_LOCATION"
 
     await manager.broadcast_to_soc(full_record)
     return {"status": action, "message": "Evaluation complete"}

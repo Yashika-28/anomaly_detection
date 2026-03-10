@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import {
   Upload, Download, MousePointer2, Network, ShieldAlert, ShieldCheck, CheckCircle, Activity,
-  PowerOff, UserPlus, LogIn, Users, MapPin, Globe, Crosshair, Gauge, Zap, ChevronDown, ChevronRight, AlertTriangle,
+  PowerOff, Users, MapPin, Globe, Crosshair, Gauge, Zap, ChevronDown, ChevronRight, AlertTriangle,
   Mail, Star, Inbox, Send, Trash2, FileText, Paperclip, Clock, File, Sun, Moon
 } from "lucide-react";
 
@@ -14,6 +14,7 @@ type UserEntry = {
   lastIp: string;
   lastLocation: { lat: number; lon: number } | null;
   riskStatus: string[];
+  trustedLocations?: { lat: number; lon: number; label?: string }[];
 };
 
 const PRESET_LOCATIONS = [
@@ -54,7 +55,6 @@ const formatFileSize = (bytes: number) => {
 };
 
 export default function PrototypePage() {
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authStep, setAuthStep] = useState<"login" | "otp">("login");
   const [otpValue, setOtpValue] = useState("");
   const [otpError, setOtpError] = useState("");
@@ -99,15 +99,33 @@ export default function PrototypePage() {
   const [keystrokeDelayOverride, setKeystrokeDelayOverride] = useState(0.12);
   const [loginAttemptOverride, setLoginAttemptOverride] = useState(1);
   const [isBotMode, setIsBotMode] = useState(false);
+  const [isInjectionEnabled, setIsInjectionEnabled] = useState(true);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["identity"]));
+
+  // Threshold configuration (editable by user)
+  const [threshBotMouseVel, setThreshBotMouseVel] = useState(3000);   // px/s above this = bot
+  const [threshBotKeyDelay, setThreshBotKeyDelay] = useState(0.05);   // s below this = bot
+  const [threshSuspAttempts, setThreshSuspAttempts] = useState(3);    // attempts >= this = suspicious
+  const [threshBruteAttempts, setThreshBruteAttempts] = useState(6);  // attempts >= this = brute force
+  const [threshHighDataMb, setThreshHighDataMb] = useState(50);       // MB upload >= this = high data
+
+  // Custom data simulation (MB to override bytes_sent / bytes_received in stream)
+  const [simUploadMb, setSimUploadMb] = useState(0);    // 0 = use real bytes
+  const [simDownloadMb, setSimDownloadMb] = useState(0); // 0 = use real bytes
+
+  // Injection send state
+  const [sendingInjection, setSendingInjection] = useState(false);
+  const [lastInjectionResult, setLastInjectionResult] = useState<{ verdict: string; color: string } | null>(null);
 
   // Refs
   const trackData = useRef({
     ip: "Fetching...", lat: 0.0, lon: 0.0, os: "Unknown",
-    tabSwitches: 0, mouseVelocity: 0, totalBytes: 0, keystrokeDelays: [] as number[]
+    tabSwitches: 0, mouseVelocity: 0, mouseVelocitySamples: [] as number[], totalBytes: 0, downloadedBytes: 0,
+    keystrokeDelays: [] as number[], keystrokeCount: 0
   });
   const lastMousePos = useRef({ x: 0, y: 0, time: Date.now() });
   const lastKeyTime = useRef<number | null>(null);
+  const typingStartTime = useRef<number | null>(null); // When the user started typing this session
   const wsRef = useRef<WebSocket | null>(null);
   const isSubmittedRef = useRef(false);
 
@@ -137,19 +155,70 @@ export default function PrototypePage() {
   }, []);
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  // Account creation
-  const handleCreateAccount = async () => {
-    if (!username || !password) { setAuthMessage({ type: "error", text: "Please fill in both fields." }); return; }
-    try {
-      const res = await fetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "CREATE_ACCOUNT", payload: { username, password } }) });
-      const data = await res.json();
-      if (data.success) {
-        setAuthMessage({ type: "success", text: `Account "${username}" created! Switching to login...` });
-        fetchUsers();
-        setTimeout(() => { setAuthMode("login"); setAuthMessage(null); }, 2000);
-      } else { setAuthMessage({ type: "error", text: data.error || "Failed to create account." }); }
-    } catch { setAuthMessage({ type: "error", text: "Server error." }); }
+  // Compute live verdict based on current injection settings vs user-configured thresholds
+  const computeVerdictPreview = () => {
+    const vel = isBotMode ? 8500 : mouseVelocityOverride;
+    const delay = isBotMode ? 0.005 : keystrokeDelayOverride;
+    const attempts = loginAttemptOverride;
+    const isBot = vel > threshBotMouseVel || delay < threshBotKeyDelay;
+    const isBruteForce = attempts >= threshBruteAttempts;
+    const isSuspicious = attempts >= threshSuspAttempts && attempts < threshBruteAttempts;
+    const bytesMB = (trackData.current.totalBytes) / (1024 * 1024);
+    const isHighData = bytesMB >= threshHighDataMb;
+
+    if (isBruteForce || isSuspicious || isHighData) return { verdict: "⚠ WARNING — MFA Required", color: "#f59e0b", cls: "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400" };
+    if (isBot) return { verdict: "🔴 CRITICAL — Bot Detected", color: "#dc2626", cls: "bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-400" };
+    return { verdict: "✅ SAFE — Human Authenticated", color: "#16a34a", cls: "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400" };
   };
+
+  // Manual one-shot injection — fires directly to evaluate endpoint with current values + thresholds
+  const handleSendInjection = async () => {
+    setSendingInjection(true);
+    setLastInjectionResult(null);
+    const loc = selectedLocationIdx >= 0 ? PRESET_LOCATIONS[selectedLocationIdx] : null;
+    const isCustomLoc = loc?.label === "Custom Location";
+    const injPayload = {
+      username: selectedUser || username || "injected_user",
+      ip_address: spoofIp || trackData.current.ip,
+      lat: loc ? (isCustomLoc ? parseFloat(customLat) || 0 : loc.lat) : trackData.current.lat,
+      lon: loc ? (isCustomLoc ? parseFloat(customLon) || 0 : loc.lon) : trackData.current.lon,
+      os: trackData.current.os || "Unknown",
+      resolution: `${window.innerWidth}x${window.innerHeight}`,
+      avg_keystroke_delay: isBotMode ? 0.005 : keystrokeDelayOverride,
+      mouse_velocity: isBotMode ? 8500 : mouseVelocityOverride,
+      tab_switch_count: loginAttemptOverride > threshSuspAttempts ? 5 : 0,
+      bytes_sent: trackData.current.totalBytes,
+      bytes_received: trackData.current.downloadedBytes,
+      active_processes: activeProcesses,
+      attempts: loginAttemptOverride,
+      login_attempts_override: loginAttemptOverride,
+      // Pass thresholds so backend can use them dynamically
+      custom_thresholds: {
+        bot_mouse_velocity: threshBotMouseVel,
+        bot_keystroke_delay: threshBotKeyDelay,
+        suspicious_attempts: threshSuspAttempts,
+        brute_force_attempts: threshBruteAttempts,
+        high_data_mb: threshHighDataMb
+      }
+    };
+    try {
+      const res = await fetch("http://localhost:8000/api/evaluate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(injPayload)
+      });
+      const data = await res.json();
+      const verdictMap: Record<string, { verdict: string; color: string }> = {
+        success: { verdict: "✅ SAFE — Human Authenticated", color: "#16a34a" },
+        blocked: { verdict: "🔴 CRITICAL — Bot Detected", color: "#dc2626" },
+        mfa_required: { verdict: "⚠ WARNING — MFA Required", color: "#f59e0b" }
+      };
+      setLastInjectionResult(verdictMap[data.status] || { verdict: data.status, color: "#64748b" });
+    } catch {
+      setLastInjectionResult({ verdict: "❌ Connection error — backend offline?", color: "#f87171" });
+    }
+    setSendingInjection(false);
+  };
+
 
   // Live tracking
   useEffect(() => {
@@ -168,15 +237,34 @@ export default function PrototypePage() {
 
     const handleVis = () => { if (document.hidden) trackData.current.tabSwitches++; };
     document.addEventListener("visibilitychange", handleVis);
-    const handleKey = () => { const now = Date.now(); if (lastKeyTime.current) trackData.current.keystrokeDelays.push((now - lastKeyTime.current) / 1000); lastKeyTime.current = now; };
+    const handleKey = () => {
+      const now = Date.now();
+      if (lastKeyTime.current) trackData.current.keystrokeDelays.push((now - lastKeyTime.current) / 1000);
+      lastKeyTime.current = now;
+      // Record when typing started (only if not already set for this session)
+      if (!typingStartTime.current) typingStartTime.current = now;
+      trackData.current.keystrokeCount++;
+    };
     document.addEventListener("keydown", handleKey);
     const handleMouse = (e: MouseEvent) => {
       const now = Date.now(); const timeDiff = now - lastMousePos.current.time;
-      if (timeDiff > 50) { const dist = Math.sqrt(Math.pow(e.clientX - lastMousePos.current.x, 2) + Math.pow(e.clientY - lastMousePos.current.y, 2)); trackData.current.mouseVelocity = Math.round((dist / timeDiff) * 1000); lastMousePos.current = { x: e.clientX, y: e.clientY, time: now }; }
+      if (timeDiff > 50) {
+        const dist = Math.sqrt(Math.pow(e.clientX - lastMousePos.current.x, 2) + Math.pow(e.clientY - lastMousePos.current.y, 2));
+        const instantVel = Math.round((dist / timeDiff) * 1000);
+        // Keep a rolling buffer of last 30 samples for a smooth avg
+        trackData.current.mouseVelocitySamples.push(instantVel);
+        if (trackData.current.mouseVelocitySamples.length > 30) trackData.current.mouseVelocitySamples.shift();
+        const samples = trackData.current.mouseVelocitySamples;
+        trackData.current.mouseVelocity = Math.round(samples.reduce((a: number, b: number) => a + b, 0) / samples.length);
+        lastMousePos.current = { x: e.clientX, y: e.clientY, time: now };
+      }
     };
     document.addEventListener("mousemove", handleMouse);
 
     const getInjectedValues = () => {
+      if (!isInjectionEnabled) {
+        return { ip: trackData.current.ip, lat: trackData.current.lat, lon: trackData.current.lon, mouseVel: trackData.current.mouseVelocity, keyDelay: 0 };
+      }
       if (selectedLocationIdx < 0) {
         return { ip: spoofIp || trackData.current.ip, lat: trackData.current.lat, lon: trackData.current.lon, mouseVel: isBotMode ? 8500 : mouseVelocityOverride, keyDelay: isBotMode ? 0.005 : keystrokeDelayOverride };
       }
@@ -189,18 +277,46 @@ export default function PrototypePage() {
       if (wsRef.current?.readyState === WebSocket.OPEN && !isSubmittedRef.current) {
         const delays = trackData.current.keystrokeDelays;
         let avgKey = delays.length ? delays.reduce((a, b) => a + b) / delays.length : 0;
+        // Avg mouse velocity — use rolling average, NOT the last-moment value
         let currentMouseVel = trackData.current.mouseVelocity;
+        // Don't reset after reading — we want the sustained average, not a pulse
         const injected = getInjectedValues();
-        if (isBotMode || spoofIp || selectedLocationIdx >= 0) { avgKey = injected.keyDelay; currentMouseVel = injected.mouseVel; }
-        const livePayload = { username: selectedUser || username, ip_address: injected.ip, lat: injected.lat, lon: injected.lon, os: trackData.current.os, resolution: `${window.innerWidth}x${window.innerHeight}`, avg_keystroke_delay: avgKey, mouse_velocity: currentMouseVel, tab_switch_count: trackData.current.tabSwitches, active_processes: activeProcesses, login_attempts_override: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts, attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts };
+        // Only apply injection overrides when injection controls are explicitly set AND enabled
+        if (isInjectionEnabled) {
+          if (isBotMode) { avgKey = 0.005; currentMouseVel = 8500; }
+          else if (spoofIp || selectedLocationIdx >= 0) { avgKey = keystrokeDelayOverride; currentMouseVel = mouseVelocityOverride; }
+          else if (mouseVelocityOverride !== 800) { currentMouseVel = mouseVelocityOverride; }
+        }
+        // Compute WPM from actual typing duration: (total keystrokes / 5) / elapsed minutes
+        // This is more accurate than averaging inter-key delays, especially at low keystroke counts
+        let typingWpm = 0;
+        if (typingStartTime.current && trackData.current.keystrokeCount > 2) {
+          const elapsedMinutes = (Date.now() - typingStartTime.current) / 60000;
+          typingWpm = elapsedMinutes > 0 ? Math.round((trackData.current.keystrokeCount / 5) / elapsedMinutes) : 0;
+        }
+        const livePayload = {
+          // Always use the LOGGED-IN user's username, not selectedUser (injection target is separate)
+          username, ip_address: injected.ip, lat: injected.lat, lon: injected.lon,
+          os: trackData.current.os, resolution: `${window.innerWidth}x${window.innerHeight}`,
+          avg_keystroke_delay: avgKey, mouse_velocity: currentMouseVel,
+          tab_switch_count: trackData.current.tabSwitches, active_processes: isInjectionEnabled ? activeProcesses : "Outlook, Excel, Chrome",
+          login_attempts_override: isInjectionEnabled && loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
+          attempts: isInjectionEnabled && loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
+          typing_wpm: typingWpm,
+          user_trusted_locations: userList.find(u => u.username === username)?.trustedLocations || []
+        };
         const payloadString = JSON.stringify(livePayload);
         trackData.current.totalBytes += new Blob([payloadString]).size;
-        wsRef.current.send(JSON.stringify({ ...livePayload, bytes_sent: trackData.current.totalBytes }));
+        wsRef.current.send(JSON.stringify({
+          ...livePayload,
+          bytes_sent: isInjectionEnabled && simUploadMb > 0 ? simUploadMb * 1024 * 1024 : trackData.current.totalBytes,
+          bytes_received: isInjectionEnabled && simDownloadMb > 0 ? simDownloadMb * 1024 * 1024 : trackData.current.downloadedBytes
+        }));
       }
     }, 1000);
 
     return () => { document.removeEventListener("visibilitychange", handleVis); document.removeEventListener("keydown", handleKey); document.removeEventListener("mousemove", handleMouse); clearInterval(streamInterval); };
-  }, [username, isMonitoring, isLoggedIn, activeProcesses, isBotMode, spoofIp, selectedLocationIdx, customLat, customLon, mouseVelocityOverride, keystrokeDelayOverride, selectedUser]);
+  }, [username, isMonitoring, isLoggedIn, activeProcesses, isBotMode, spoofIp, selectedLocationIdx, customLat, customLon, mouseVelocityOverride, keystrokeDelayOverride, selectedUser, simUploadMb, simDownloadMb, loginAttemptOverride, isInjectionEnabled]);
 
   // Login with password validation
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -227,7 +343,8 @@ export default function PrototypePage() {
         else if (spoofIp || selectedLocationIdx >= 0) { avgKey = keystrokeDelayOverride; currentMouseVel = mouseVelocityOverride; }
 
         const evaluationPayload = {
-          username: selectedUser || username,
+          // Always evaluate and record the LOGGED-IN user, not the injection target
+          username,
           ip_address: spoofIp || trackData.current.ip,
           lat: selectedLocationIdx < 0 ? trackData.current.lat : (isCustomLoc ? parseFloat(customLat) || 0 : loc!.lat),
           lon: selectedLocationIdx < 0 ? trackData.current.lon : (isCustomLoc ? parseFloat(customLon) || 0 : loc!.lon),
@@ -264,8 +381,8 @@ export default function PrototypePage() {
       } else {
         setAuthMessage({ type: "error", text: data.error || "Login failed." });
 
-        if (newAttemptCount > 5) {
-          // Trigger security alert email for extreme brute force
+        // Brute force security alert email: triggered at 3+ wrong attempts
+        if (newAttemptCount >= 3) {
           try {
             await fetch("http://localhost:8000/api/alert-brute-force", {
               method: "POST",
@@ -275,7 +392,8 @@ export default function PrototypePage() {
           } catch { /* ok */ }
         }
 
-        if (newAttemptCount > 2 && !bruteForceReported) {
+        // Brute force DB record: triggered at 3 wrong attempts
+        if (newAttemptCount >= 3 && !bruteForceReported) {
           setBruteForceReported(true);
           const telemetry = {
             ip_address: spoofIp || trackData.current.ip,
@@ -293,7 +411,7 @@ export default function PrototypePage() {
           try {
             await fetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "RECORD_FAILED_ATTEMPTS", payload: { username, attempts: newAttemptCount, telemetry } }) });
           } catch { /* ok */ }
-        } else if (newAttemptCount > 2 && bruteForceReported) {
+        } else if (newAttemptCount >= 3 && bruteForceReported) {
           const telemetry = {
             ip_address: spoofIp || trackData.current.ip,
             lat: trackData.current.lat,
@@ -350,7 +468,7 @@ export default function PrototypePage() {
       const res = await fetch("http://localhost:8000/api/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: selectedUser || username, otp: otpValue, ...tel })
+        body: JSON.stringify({ username, otp: otpValue, ...tel })
       });
       const data = await res.json();
       if (data.status === "success") {
@@ -381,21 +499,38 @@ export default function PrototypePage() {
     e.target.value = "";
   };
 
-  // Real file download
+  // Real file download — pads content to match the stated file size for realistic byte tracking
   const handleDownload = (file: typeof DOWNLOADABLE_FILES[0]) => {
-    // Generate realistic content based on file type
-    let content = "";
+    let baseContent = "";
     if (file.type === "application/json") {
-      content = JSON.stringify({ logs: Array.from({ length: 50 }, (_, i) => ({ id: i + 1, timestamp: new Date(Date.now() - i * 60000).toISOString(), level: ["INFO", "WARN", "ERROR"][Math.floor(Math.random() * 3)], message: `Server event ${i + 1}: ${["Request processed", "Memory spike detected", "Connection timeout", "Auth failure"][Math.floor(Math.random() * 4)]}`, ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}` })) }, null, 2);
+      baseContent = JSON.stringify({ logs: Array.from({ length: 200 }, (_, i) => ({ id: i + 1, timestamp: new Date(Date.now() - i * 60000).toISOString(), level: ["INFO", "WARN", "ERROR"][Math.floor(Math.random() * 3)], message: `Server event ${i + 1}: ${["Request processed", "Memory spike detected", "Connection timeout", "Auth failure"][Math.floor(Math.random() * 4)]}`, ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`, user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", session_id: Math.random().toString(36).slice(2) })) }, null, 2);
     } else if (file.type === "text/csv") {
-      content = "Name,Email,Department,Role,Location\n" + ["Alice Wong,alice@company.com,Engineering,Lead,NYC", "Bob Smith,bob@company.com,Marketing,Manager,London", "Carol Davis,carol@company.com,HR,Director,Paris", "Dan Lee,dan@company.com,Security,Analyst,Tokyo", "Eve Brown,eve@company.com,Finance,VP,Sydney"].join("\n");
+      const rows = Array.from({ length: 500 }, (_, i) => `User_${i},user${i}@company.com,Department_${i % 10},Role_${i % 5},City_${i % 20},${Math.random().toString(36).slice(2)},${new Date(Date.now() - i * 86400000).toISOString()}`);
+      baseContent = "Name,Email,Department,Role,Location,ID,LastLogin\n" + rows.join("\n");
     } else if (file.type === "text/plain") {
-      content = "# PRODUCTION ENVIRONMENT VARIABLES\nDB_HOST=prod-db-cluster.internal\nDB_PORT=5432\nAPI_KEY=sk-prod-xxxxxxxxxxxx\nSECRET_TOKEN=eyJhbGciOiJIUzI1NiIs...\nAWS_ACCESS_KEY=AKIA...\nSTRIPE_SECRET=sk_live_...";
+      baseContent = "# PRODUCTION ENVIRONMENT VARIABLES\nDB_HOST=prod-db-cluster.internal\nDB_PORT=5432\nDB_NAME=prod_main\nDB_USER=svc_account\nDB_PASS=p@ssw0rd_secure_2024!\nAPI_KEY=sk-prod-xxxxxxxxxxxxxxxxxxxxxxxxxxxx\nSECRET_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0\nAWS_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE\nAWS_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nSTRIPE_SECRET=sk_dummy_xxxxxxxxxxxxxxxxxxxxxxxxxxxx\nSENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0\nREDIS_URL=redis://prod-cache.internal:6379\nSMTP_HOST=smtp.sendgrid.net\nSMTP_USER=apikey";
+    } else if (file.type === "image/png") {
+      baseContent = Array.from({ length: 1000 }, (_, i) => `NODE_${i}->SUBNET_${i % 50}->GATEWAY_${i % 10}->CORE`).join("\n");
+    } else if (file.type === "application/sql") {
+      baseContent = Array.from({ length: 2000 }, (_, i) => `INSERT INTO clients (id, name, email, created_at, balance, status) VALUES (${i}, 'Client ${i}', 'client${i}@corp.com', '${new Date(Date.now() - i * 86400000).toISOString()}', ${(Math.random() * 100000).toFixed(2)}, 'active');`).join("\n");
     } else {
-      content = `[${file.name}] Generated content for simulation - ${file.size} bytes of metadata.\nTimestamp: ${new Date().toISOString()}\nGenerated by UEBA Prototype Engine`;
+      baseContent = `[${file.name}] UEBA Simulation Export\nTimestamp: ${new Date().toISOString()}\nGenerated by NeurometricShield Prototype Engine\n`;
     }
 
-    const blob = new Blob([content], { type: file.type });
+    // Pad content to match the stated file size with a comment block
+    const encoder = new TextEncoder();
+    const baseBytes = encoder.encode(baseContent).length;
+    const targetBytes = file.size;
+    let paddedContent = baseContent;
+    if (baseBytes < targetBytes) {
+      const paddingNeeded = targetBytes - baseBytes;
+      // Add a padding block that makes the file the correct size
+      const paddingLine = "# " + "X".repeat(78) + "\n";
+      const linesNeeded = Math.ceil(paddingNeeded / paddingLine.length);
+      paddedContent += "\n\n# === PADDING DATA (SIMULATION FILLER) ===\n" + paddingLine.repeat(linesNeeded);
+    }
+
+    const blob = new Blob([paddedContent], { type: file.type });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -405,7 +540,7 @@ export default function PrototypePage() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    trackData.current.totalBytes += blob.size;
+    trackData.current.downloadedBytes += blob.size;
     setShowDownloadMenu(false);
     setStatus(`⬇️ Downloaded ${file.name} (${formatFileSize(blob.size)})`);
     setTimeout(() => setStatus("🟢 Active Session: Monitoring Telemetry..."), 3000);
@@ -419,7 +554,6 @@ export default function PrototypePage() {
     if (isMonitoring && !isSubmittedRef.current) {
       isSubmittedRef.current = true;
       setIsMonitoring(false);
-      if (wsRef.current) wsRef.current.close();
 
       const delays = trackData.current.keystrokeDelays;
       let avgKey = delays.length ? delays.reduce((a, b) => a + b) / delays.length : 0;
@@ -429,6 +563,28 @@ export default function PrototypePage() {
       if (isBotMode) { avgKey = 0.005; currentMouseVel = 8500; }
       else if (spoofIp || selectedLocationIdx >= 0) { avgKey = keystrokeDelayOverride; currentMouseVel = mouseVelocityOverride; }
 
+      // Send SESSION_ENDED signal to SOC so dashboard can flip Live → Locked immediately
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        const logoutSignal = {
+          type: "LOGOUT_SIGNAL",
+          username: selectedUser || username,
+          ip_address: spoofIp || trackData.current.ip,
+          os: trackData.current.os,
+          resolution: `${window.innerWidth}x${window.innerHeight}`
+        };
+        wsRef.current.send(JSON.stringify(logoutSignal));
+        // Small delay so the signal is sent before we close
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+      if (wsRef.current) wsRef.current.close();
+
+      const typingWpm = (() => {
+        if (typingStartTime.current && trackData.current.keystrokeCount > 2) {
+          const elapsedMinutes = (Date.now() - typingStartTime.current) / 60000;
+          return elapsedMinutes > 0 ? Math.round((trackData.current.keystrokeCount / 5) / elapsedMinutes) : 0;
+        }
+        return 0;
+      })();
       const finalPayload = {
         username: selectedUser || username, ip_address: spoofIp || trackData.current.ip,
         lat: selectedLocationIdx < 0 ? trackData.current.lat : (isCustomLoc ? parseFloat(customLat) || 0 : loc!.lat),
@@ -437,13 +593,14 @@ export default function PrototypePage() {
         avg_keystroke_delay: avgKey, mouse_velocity: currentMouseVel,
         tab_switch_count: trackData.current.tabSwitches, active_processes: activeProcesses,
         bytes_sent: trackData.current.totalBytes,
+        bytes_received: trackData.current.downloadedBytes,
+        typing_wpm: typingWpm,
         login_attempts_override: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
         attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts
       };
 
       try {
-        await fetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "RECORD_LOGIN", payload: { username: selectedUser || username, password, telemetry: finalPayload } }) });
-        // Removed duplicate final evaluation here, since it now occurs at login time.
+        await fetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "RECORD_LOGIN", payload: { username, password, telemetry: finalPayload } }) });
       } catch { /* ok */ }
     }
 
@@ -461,7 +618,10 @@ export default function PrototypePage() {
     setLoginAttempts(0); setBruteForceReported(false);
     setSelectedEmail(null); setComposeOpen(false); setUploadedFiles([]);
     setAuthStep("login"); setOtpValue(""); setOtpError("");
-    trackData.current.keystrokeDelays = []; trackData.current.tabSwitches = 0; trackData.current.totalBytes = 0;
+    trackData.current.keystrokeDelays = []; trackData.current.tabSwitches = 0;
+    trackData.current.totalBytes = 0; trackData.current.downloadedBytes = 0;
+    trackData.current.keystrokeCount = 0; trackData.current.mouseVelocity = 0;
+    lastKeyTime.current = null; typingStartTime.current = null; // Reset typing timers
     if (wsRef.current) wsRef.current.close();
     setStatus("Awaiting Login Initialization...");
     setIsLoggingOut(false);
@@ -547,18 +707,8 @@ export default function PrototypePage() {
                 </form>
               ) : !isLoggedIn ? (
                 <>
-                  {/* Auth Mode Toggle */}
-                  <div className="flex items-center gap-2 mb-6">
-                    <button suppressHydrationWarning onClick={() => { setAuthMode("login"); setAuthMessage(null); }} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${authMode === "login" ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700/50'}`}>
-                      <LogIn className="w-4 h-4" /> Login
-                    </button>
-                    <button suppressHydrationWarning onClick={() => { setAuthMode("register"); setAuthMessage(null); }} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${authMode === "register" ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700/50'}`}>
-                      <UserPlus className="w-4 h-4" /> Create Account
-                    </button>
-                  </div>
-
                   <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
-                    {authMode === "login" ? <><ShieldAlert className="text-blue-600 dark:text-blue-500 w-5 h-5" /> Secure Authentication</> : <><UserPlus className="text-emerald-600 dark:text-emerald-500 w-5 h-5" /> Register New Account</>}
+                    <ShieldAlert className="text-blue-600 dark:text-blue-500 w-5 h-5" /> Secure Authentication
                   </h2>
 
                   {authMessage && (
@@ -578,29 +728,19 @@ export default function PrototypePage() {
                       <input suppressHydrationWarning type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" placeholder="••••••••" required />
                     </div>
 
-                    {authMode === "login" && (
-                      <>
-                        {locationError && (
-                          <div className="bg-rose-900/20 border border-rose-800/50 text-rose-400 p-3 rounded-xl text-sm font-semibold flex items-center gap-2">
-                            <ShieldAlert className="w-4 h-4 shrink-0" /> Location permission required.
-                          </div>
-                        )}
-                        <button suppressHydrationWarning type="submit" disabled={!username || !password || locationError || isLoggingIn} className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
-                          {isLoggingIn ? (
-                            <>
-                              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                              Verifying...
-                            </>
-                          ) : "Secure Login"}
-                        </button>
-                      </>
+                    {locationError && (
+                      <div className="bg-rose-900/20 border border-rose-800/50 text-rose-400 p-3 rounded-xl text-sm font-semibold flex items-center gap-2">
+                        <ShieldAlert className="w-4 h-4 shrink-0" /> Location permission required.
+                      </div>
                     )}
-
-                    {authMode === "register" && (
-                      <button suppressHydrationWarning type="button" onClick={handleCreateAccount} disabled={!username || !password} className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-600/20">
-                        Create Account
-                      </button>
-                    )}
+                    <button suppressHydrationWarning type="submit" disabled={!username || !password || locationError || isLoggingIn} className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+                      {isLoggingIn ? (
+                        <>
+                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                          Verifying...
+                        </>
+                      ) : "Secure Login"}
+                    </button>
                   </form>
                 </>
               ) : (
@@ -743,14 +883,29 @@ export default function PrototypePage() {
           <div className="lg:col-span-8">
             <div className="bg-white/80 dark:bg-[#0d1018]/80 backdrop-blur-md border border-rose-200 dark:border-rose-900/30 rounded-2xl p-6 shadow-[0_0_40px_rgba(225,29,72,0.04)]">
               <div className="flex items-center justify-between mb-6 border-b border-rose-200 dark:border-rose-900/30 pb-4">
-                <h2 className="text-xl font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                  <div className="p-2 bg-gradient-to-br from-rose-600 to-orange-600 rounded-xl"><ShieldAlert className="text-white w-5 h-5" /></div>
-                  Threat Injection Engine
-                </h2>
-                <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800/50">Manipulate telemetry before it reaches AI models</span>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-rose-600 to-orange-600 rounded-xl"><ShieldAlert className="text-white w-5 h-5" /></div>
+                    Threat Injection Engine
+                  </h2>
+                  <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800/50 hidden xl:inline-block">Manipulate telemetry before it reaches AI models</span>
+                </div>
+
+                {/* Enable/Disable Toggle */}
+                <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-900/50 p-1.5 pr-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                  <button suppressHydrationWarning
+                    onClick={() => setIsInjectionEnabled(!isInjectionEnabled)}
+                    className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${isInjectionEnabled ? 'bg-rose-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${isInjectionEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                  </button>
+                  <span className={`text-sm font-bold ${isInjectionEnabled ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500'}`}>
+                    {isInjectionEnabled ? "ENABLED" : "DISABLED"}
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-3">
+              <div className={`space-y-3 transition-opacity duration-300 ${isInjectionEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
 
                 {/* ═══ GROUP 1: Identity & Network ═══ */}
                 <div className="rounded-xl border border-slate-200 dark:border-slate-800/50 overflow-hidden">
@@ -768,7 +923,7 @@ export default function PrototypePage() {
                       <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-amber-600 dark:text-amber-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Users className="w-4 h-4" /> Target User</label>
                         <div className="relative">
-                          <select suppressHydrationWarning value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-amber-500 outline-none appearance-none cursor-pointer transition-colors text-sm" disabled={isSubmittedRef.current}>
+                          <select suppressHydrationWarning value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-amber-500 outline-none appearance-none cursor-pointer transition-colors text-sm" disabled={isSubmittedRef.current || isLoggedIn}>
                             <option value="">Use logged-in user ({username || "none"})</option>
                             {userList.map(u => (<option key={u.username} value={u.username}>{u.username} — {u.attempts} attempts — {u.lastIp}</option>))}
                           </select>
@@ -780,7 +935,7 @@ export default function PrototypePage() {
                       {/* IP Spoofing */}
                       <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-cyan-600 dark:text-cyan-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Globe className="w-4 h-4" /> IP Spoofing</label>
-                        <input suppressHydrationWarning type="text" value={spoofIp} onChange={(e) => setSpoofIp(e.target.value)} placeholder={`Real: ${trackData.current.ip}`} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-cyan-500 outline-none font-mono transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 text-sm" disabled={isSubmittedRef.current} />
+                        <input suppressHydrationWarning type="text" value={spoofIp} onChange={(e) => setSpoofIp(e.target.value)} placeholder={`Real: ${trackData.current.ip}`} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-cyan-500 outline-none font-mono transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 text-sm" disabled={isSubmittedRef.current || isLoggedIn} />
                         <p className="text-xs text-slate-500 mt-1.5">Leave empty to use real IP</p>
                       </div>
 
@@ -788,7 +943,7 @@ export default function PrototypePage() {
                       <div className="lg:col-span-2 bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-violet-600 dark:text-violet-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><MapPin className="w-4 h-4" /> Location Spoofing</label>
                         <div className="relative">
-                          <select suppressHydrationWarning value={selectedLocationIdx} onChange={(e) => setSelectedLocationIdx(parseInt(e.target.value))} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-violet-500 outline-none appearance-none cursor-pointer transition-colors text-sm" disabled={isSubmittedRef.current}>
+                          <select suppressHydrationWarning value={selectedLocationIdx} onChange={(e) => setSelectedLocationIdx(parseInt(e.target.value))} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-violet-500 outline-none appearance-none cursor-pointer transition-colors text-sm" disabled={isSubmittedRef.current || isLoggedIn}>
                             <option value={-1}>Use real location</option>
                             {PRESET_LOCATIONS.map((loc, i) => (<option key={i} value={i}>{loc.label} ({loc.lat.toFixed(2)}°, {loc.lon.toFixed(2)}°)</option>))}
                           </select>
@@ -841,7 +996,7 @@ export default function PrototypePage() {
                       <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-orange-600 dark:text-orange-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Crosshair className="w-4 h-4" /> Login Attempts</label>
                         <div className="flex items-center gap-3">
-                          <input suppressHydrationWarning type="range" min="1" max="20" value={loginAttemptOverride} onChange={(e) => setLoginAttemptOverride(parseInt(e.target.value))} className="flex-1 accent-orange-500" disabled={isSubmittedRef.current} />
+                          <input suppressHydrationWarning type="range" min="1" max="20" value={loginAttemptOverride} onChange={(e) => setLoginAttemptOverride(parseInt(e.target.value))} className="flex-1 accent-orange-500" disabled={isSubmittedRef.current || isLoggedIn} />
                           <span className={`text-2xl font-bold font-mono min-w-[3ch] text-right ${loginAttemptOverride > 5 ? 'text-rose-600 dark:text-rose-400' : loginAttemptOverride > 2 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{loginAttemptOverride}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-1.5">{loginAttemptOverride > 5 ? '⚠ Brute-force pattern' : loginAttemptOverride > 2 ? '⚠ Suspicious' : '✓ Normal range'}</p>
@@ -896,7 +1051,126 @@ export default function PrototypePage() {
                   </div>
                 </div>
 
+                {/* ═══ GROUP 3.5: Data Transfer Simulation ═══ */}
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800/50 overflow-hidden">
+                  <button suppressHydrationWarning type="button" onClick={() => toggleSection("data")} className="w-full flex items-center justify-between px-5 py-4 bg-slate-100/80 dark:bg-slate-900/60 hover:bg-slate-200/60 dark:hover:bg-slate-800/40 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 bg-gradient-to-br from-blue-500 to-teal-500 rounded-lg"><Network className="w-4 h-4 text-white" /></div>
+                      <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Data Transfer Simulation</span>
+                      <span className="text-[10px] uppercase tracking-wider text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full">2 controls</span>
+                    </div>
+                    <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.has("data") ? "rotate-90" : ""}`} />
+                  </button>
+                  <div className={`transition-all duration-300 ease-in-out ${openSections.has("data") ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"} overflow-hidden`}>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-5">
+                      {/* Simulated Upload MB */}
+                      <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs uppercase text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1.5 tracking-wider"><Upload className="w-3.5 h-3.5" /> Sim Upload</label>
+                          <span className="text-sm font-bold font-mono text-slate-900 dark:text-white">{simUploadMb === 0 ? 'Real' : `${simUploadMb} MB`}</span>
+                        </div>
+                        <input type="range" min="0" max="2000" step="10" value={simUploadMb} onChange={e => setSimUploadMb(parseInt(e.target.value))} className="w-full accent-blue-500" />
+                        <p className="text-[10px] text-slate-500 mt-1">{simUploadMb === 0 ? 'Using real accumulated bytes' : `Override upload → ${simUploadMb} MB streamed live`}</p>
+                      </div>
+                      {/* Simulated Download MB */}
+                      <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs uppercase text-teal-600 dark:text-teal-400 font-bold flex items-center gap-1.5 tracking-wider"><Download className="w-3.5 h-3.5" /> Sim Download</label>
+                          <span className="text-sm font-bold font-mono text-slate-900 dark:text-white">{simDownloadMb === 0 ? 'Real' : `${simDownloadMb} MB`}</span>
+                        </div>
+                        <input type="range" min="0" max="5000" step="50" value={simDownloadMb} onChange={e => setSimDownloadMb(parseInt(e.target.value))} className="w-full accent-teal-500" />
+                        <p className="text-[10px] text-slate-500 mt-1">{simDownloadMb === 0 ? 'Using real downloaded bytes' : `Override download → ${simDownloadMb} MB streamed live`}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
+
+              {/* ═══ GROUP 4: Detection Thresholds ═══ */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800/50 overflow-hidden">
+                <button suppressHydrationWarning type="button" onClick={() => toggleSection("thresholds")} className="w-full flex items-center justify-between px-5 py-4 bg-slate-100/80 dark:bg-slate-900/60 hover:bg-slate-200/60 dark:hover:bg-slate-800/40 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 bg-gradient-to-br from-violet-500 to-blue-500 rounded-lg"><Gauge className="w-4 h-4 text-white" /></div>
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Detection Thresholds</span>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full">5 controls</span>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openSections.has("thresholds") ? "rotate-90" : ""}`} />
+                </button>
+                <div className={`transition-all duration-300 ease-in-out ${openSections.has("thresholds") ? "max-h-[900px] opacity-100" : "max-h-0 opacity-0"} overflow-hidden`}>
+                  <div className="p-5 space-y-4">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 bg-violet-500/5 border border-violet-500/20 rounded-lg px-3 py-2">
+                      These thresholds define the boundaries the AI uses to classify logins. Values beyond these limits trigger the corresponding verdict on the dashboard.
+                    </p>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs uppercase text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1.5 tracking-wider"><MousePointer2 className="w-3.5 h-3.5" /> Bot: Mouse Speed ›</label>
+                          <span className="text-sm font-bold font-mono text-slate-900 dark:text-white">{threshBotMouseVel} px/s</span>
+                        </div>
+                        <input type="range" min="500" max="10000" step="100" value={threshBotMouseVel} onChange={e => setThreshBotMouseVel(parseInt(e.target.value))} className="w-full accent-rose-500" />
+                        <p className="text-[10px] text-slate-500 mt-1">Mouse speed above this → Bot verdict</p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs uppercase text-orange-600 dark:text-orange-400 font-bold flex items-center gap-1.5 tracking-wider"><Zap className="w-3.5 h-3.5" /> Bot: Key Delay ‹</label>
+                          <span className="text-sm font-bold font-mono text-slate-900 dark:text-white">{threshBotKeyDelay.toFixed(3)}s</span>
+                        </div>
+                        <input type="range" min="0.005" max="0.2" step="0.005" value={threshBotKeyDelay} onChange={e => setThreshBotKeyDelay(parseFloat(e.target.value))} className="w-full accent-orange-500" />
+                        <p className="text-[10px] text-slate-500 mt-1">Key delay below this → Bot verdict</p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs uppercase text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1.5 tracking-wider"><AlertTriangle className="w-3.5 h-3.5" /> Warning: Attempts ≥</label>
+                          <span className="text-sm font-bold font-mono text-slate-900 dark:text-white">{threshSuspAttempts}</span>
+                        </div>
+                        <input type="range" min="2" max={Math.max(threshBruteAttempts - 1, 3)} step="1" value={threshSuspAttempts} onChange={e => setThreshSuspAttempts(parseInt(e.target.value))} className="w-full accent-amber-500" />
+                        <p className="text-[10px] text-slate-500 mt-1">Attempts ≥ this → Warning / MFA</p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs uppercase text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1.5 tracking-wider"><Crosshair className="w-3.5 h-3.5" /> Brute Force: Attempts ≥</label>
+                          <span className="text-sm font-bold font-mono text-slate-900 dark:text-white">{threshBruteAttempts}</span>
+                        </div>
+                        <input type="range" min={Math.min(threshSuspAttempts + 1, 20)} max="20" step="1" value={threshBruteAttempts} onChange={e => setThreshBruteAttempts(parseInt(e.target.value))} className="w-full accent-rose-500" />
+                        <p className="text-[10px] text-slate-500 mt-1">Attempts ≥ this → Brute-force critical</p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50 lg:col-span-2">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs uppercase text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1.5 tracking-wider"><Network className="w-3.5 h-3.5" /> High Upload: ≥ MB</label>
+                          <span className="text-sm font-bold font-mono text-slate-900 dark:text-white">{threshHighDataMb} MB</span>
+                        </div>
+                        <input type="range" min="1" max="500" step="1" value={threshHighDataMb} onChange={e => setThreshHighDataMb(parseInt(e.target.value))} className="w-full accent-blue-500" />
+                        <p className="text-[10px] text-slate-500 mt-1">Upload above this → High data transfer flag</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ═══ INJECTION STATUS ═══ */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800/50 bg-slate-50 dark:bg-slate-900/40 p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-500" /> Injection Streaming
+                  </h3>
+                  {isMonitoring ? (
+                    <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block"></span> LIVE
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full font-semibold">STANDBY</span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500">
+                  {isMonitoring
+                    ? "Injection values are streaming live to the SOC dashboard. Adjust any slider — the same session updates every second."
+                    : isLoggedIn
+                      ? "You are logged in. Injection values from the sliders above are included in the live telemetry stream."
+                      : "Configure injection settings above. Values will be applied to the SOC stream once you log in on the left."}
+                </p>
+              </div>
+
             </div>
           </div>
         </div>
