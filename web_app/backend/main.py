@@ -8,7 +8,7 @@ import math
 from email.message import EmailMessage
 import os
 from dotenv import load_dotenv
-from email_template import get_otp_email_html, get_otp_email_text
+from email_template import get_otp_email_html, get_otp_email_text, get_brute_force_email_html, get_brute_force_email_text
 
 load_dotenv()
 
@@ -255,7 +255,8 @@ class AlertPayload(BaseModel):
 @app.post("/api/alert-brute-force")
 async def alert_brute_force(payload: AlertPayload):
     msg = EmailMessage()
-    msg.set_content(f"SECURITY ALERT\n\nThere have been {payload.attempts} failed login attempts for the account '{payload.username}'.\n\nIf this was not you, someone may be trying to guess your password. We recommend changing your password immediately.")
+    msg.set_content(get_brute_force_email_text(payload.attempts, payload.username))
+    msg.add_alternative(get_brute_force_email_html(payload.attempts, payload.username), subtype='html')
     msg['Subject'] = '🚨 NeurometricShield: Critical Security Alert (Brute Force Detected)'
     msg['From'] = SENDER_EMAIL
     msg['To'] = payload.email

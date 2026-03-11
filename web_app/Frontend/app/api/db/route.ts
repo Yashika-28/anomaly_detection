@@ -371,6 +371,7 @@ export async function POST(req: Request) {
         if (action === "GET_USERS") {
             const userList = Object.entries(db.users).map(([username, userData]: [string, any]) => ({
                 username,
+                email: userData.email || "",
                 attempts: userData.attempts || 0,
                 lastIp: userData.telemetry?.ip_address || "Unknown",
                 lastLocation: userData.telemetry ? {

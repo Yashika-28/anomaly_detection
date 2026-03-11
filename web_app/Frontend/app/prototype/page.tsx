@@ -10,6 +10,7 @@ import {
 
 type UserEntry = {
   username: string;
+  email: string;
   attempts: number;
   lastIp: string;
   lastLocation: { lat: number; lon: number } | null;
@@ -357,7 +358,7 @@ export default function PrototypePage() {
           bytes_sent: trackData.current.totalBytes,
           login_attempts_override: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
           attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
-          email: "nischalsharma2037@gmail.com"
+          email: userList.find(u => u.username === username)?.email || "nischalsharma2037@gmail.com"
         };
 
         try {
@@ -384,10 +385,11 @@ export default function PrototypePage() {
         // Brute force security alert email: triggered at 3+ wrong attempts
         if (newAttemptCount >= 3) {
           try {
+            const targetEmail = userList.find(u => u.username === username)?.email || "nischalsharma2037@gmail.com";
             await fetch("http://localhost:8000/api/alert-brute-force", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: "nischalsharma2037@gmail.com", username: username, attempts: newAttemptCount })
+              body: JSON.stringify({ email: targetEmail, username: username, attempts: newAttemptCount })
             });
           } catch { /* ok */ }
         }
