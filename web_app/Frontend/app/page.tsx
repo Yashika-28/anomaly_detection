@@ -403,10 +403,10 @@ const triadData = [
 ];
 
 const teamData = [
-  { name: "Akshi Malik", role: "Lead ML Engineer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Yashika&backgroundColor=b6e3f4" },
-  { name: "Anamika Chahal", role: "Frontend Architect", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Alex&backgroundColor=c0aede" },
-  { name: "Priyanshi", role: "Security Analyst", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Sarah&backgroundColor=ffdfbf" },
-  { name: "Archit", role: "Backend Developer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=David&backgroundColor=d1d4f9" }
+  { name: "Akshi Malik", role: "Lead ML Engineer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Yashika&backgroundColor=b6e3f4", email: "malikakshi051@gmail.com", github: "" },
+  { name: "Anamika Chahal", role: "Frontend Architect", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Alex&backgroundColor=c0aede", email: "anamika22csu015@ncuindia.edu", github: "https://github.com/anamikachahal22" },
+  { name: "Priyanshi", role: "Security Analyst", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Sarah&backgroundColor=ffdfbf", email: "priyanshi22csu393@ncuinda.edu", github: "https://github.com/Pri-web30" },
+  { name: "Archit", role: "Backend Developer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=David&backgroundColor=d1d4f9", email: "", github: "" }
 ];
 
 export default function App() {
@@ -887,8 +887,8 @@ export default function App() {
                     <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-4">{member.role}</p>
 
                     <div className="flex gap-3 text-slate-500 dark:text-neutral-500">
-                      <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors"><Github className="w-4 h-4" /></a>
-                      <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors"><Mail className="w-4 h-4" /></a>
+                      <a href={member.github || "#"} target="_blank" rel="noreferrer" className="hover:text-slate-900 dark:hover:text-white transition-colors"><Github className="w-4 h-4" /></a>
+                      <a href={member.email ? `mailto:${member.email}` : "#"} className="hover:text-slate-900 dark:hover:text-white transition-colors"><Mail className="w-4 h-4" /></a>
                     </div>
                   </div>
                 </FadeIn>

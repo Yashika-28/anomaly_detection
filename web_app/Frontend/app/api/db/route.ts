@@ -24,9 +24,9 @@ function isUserTrustedLocation(lat: number, lon: number, trusted: { lat: number;
 if (!globalDb.mockDb) {
     globalDb.mockDb = {
         users: {
-            "marcus_aurelius": {
+            "priyanshi": {
                 password: "password123",
-                email: "nischalsharma2037@gmail.com",
+                email: "priyanshi22csu393@ncuinda.edu",
                 attempts: 1,
                 trustedLocations: [
                     { lat: 48.8566, lon: 2.3522, label: "Paris (Home)" },
@@ -47,9 +47,9 @@ if (!globalDb.mockDb) {
                     risk_status: ["SAFE"]
                 }
             },
-            "sys_admin_sim": {
+            "anamika": {
                 password: "admin_password",
-                email: "nischalsharma2037@gmail.com",
+                email: "anamika22csu015@ncuindia.edu",
                 attempts: 4,
                 trustedLocations: [
                     { lat: 34.0522, lon: -118.2437, label: "Los Angeles (HQ)" },
@@ -69,9 +69,9 @@ if (!globalDb.mockDb) {
                     risk_status: ["ANOMALY_BOT"]
                 }
             },
-            "john_doe": {
+            "akshi": {
                 password: "secure456",
-                email: "nischalsharma2037@gmail.com",
+                email: "malikakshi051@gmail.com",
                 attempts: 2,
                 trustedLocations: [
                     { lat: 40.7128, lon: -74.006, label: "New York (Home)" },
@@ -117,8 +117,8 @@ if (!globalDb.mockDb) {
         },
         sessions: [
             {
-                id: "sys_admin_sim-" + (Date.now() - 1000 * 60 * 15),
-                username: "sys_admin_sim",
+                id: "anamika-" + (Date.now() - 1000 * 60 * 15),
+                username: "anamika",
                 attempts: 4,
                 telemetry: {
                     ip_address: "10.0.0.84",
@@ -136,8 +136,8 @@ if (!globalDb.mockDb) {
                 timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString()
             },
             {
-                id: "marcus_aurelius-" + (Date.now() - 1000 * 60 * 60 * 2),
-                username: "marcus_aurelius",
+                id: "priyanshi-" + (Date.now() - 1000 * 60 * 60 * 2),
+                username: "priyanshi",
                 attempts: 1,
                 telemetry: {
                     ip_address: "192.168.1.15",
@@ -155,8 +155,8 @@ if (!globalDb.mockDb) {
                 timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
             },
             {
-                id: "john_doe-" + (Date.now() - 1000 * 60 * 45),
-                username: "john_doe",
+                id: "akshi-" + (Date.now() - 1000 * 60 * 45),
+                username: "akshi",
                 attempts: 2,
                 telemetry: {
                     ip_address: "192.168.1.15",
