@@ -71,7 +71,7 @@ if (!globalDb.mockDb) {
             },
             "akshi": {
                 password: "secure456",
-                email: "malikakshi051@gmail.com",
+                email: "akshi22csu412@ncuindia.edu",
                 attempts: 2,
                 trustedLocations: [
                     { lat: 40.7128, lon: -74.006, label: "New York (Home)" },
@@ -88,6 +88,28 @@ if (!globalDb.mockDb) {
                     tab_switch_count: 1,
                     active_processes: "Outlook, Teams, Chrome",
                     bytes_sent: 5000000,
+                    risk_status: ["SAFE"]
+                }
+            },
+            "archit": {
+                password: "archit@456",
+                email: "archit22csu025@ncuindia.edu",
+                attempts: 1,
+                trustedLocations: [
+                    { lat: 28.6139, lon: 77.2090, label: "Delhi (Home)" },
+                    { lat: 28.4595, lon: 77.0266, label: "Gurugram (Office)" }
+                ],
+                telemetry: {
+                    ip_address: "192.168.2.10",
+                    lat: 28.6139,
+                    lon: 77.2090,
+                    os: "Windows 11",
+                    resolution: "1920x1080",
+                    avg_keystroke_delay: 0.13,
+                    mouse_velocity: 720,
+                    tab_switch_count: 0,
+                    active_processes: "VS Code, Chrome, Terminal",
+                    bytes_sent: 8000000,
                     risk_status: ["SAFE"]
                 }
             },

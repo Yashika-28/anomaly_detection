@@ -403,10 +403,10 @@ const triadData = [
 ];
 
 const teamData = [
-  { name: "Akshi Malik", role: "Lead ML Engineer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Yashika&backgroundColor=b6e3f4", email: "malikakshi051@gmail.com", github: "" },
+  { name: "Akshi Malik", role: "Lead ML Engineer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Yashika&backgroundColor=b6e3f4", email: "akshi22csu412@ncuindia.edu", github: "" },
   { name: "Anamika Chahal", role: "Frontend Architect", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Alex&backgroundColor=c0aede", email: "anamika22csu015@ncuindia.edu", github: "https://github.com/anamikachahal22" },
   { name: "Priyanshi", role: "Security Analyst", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Sarah&backgroundColor=ffdfbf", email: "priyanshi22csu393@ncuinda.edu", github: "https://github.com/Pri-web30" },
-  { name: "Archit", role: "Backend Developer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=David&backgroundColor=d1d4f9", email: "", github: "" }
+  { name: "Archit", role: "Backend Developer", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=David&backgroundColor=d1d4f9", email: "archit22csu025@ncuindia.edu", github: "" }
 ];
 
 export default function App() {
