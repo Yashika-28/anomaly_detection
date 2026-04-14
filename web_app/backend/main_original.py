@@ -108,6 +108,8 @@ async def websocket_tracking_endpoint(websocket: WebSocket):
 
             data["time"] = datetime.datetime.now().strftime("%H:%M:%S")
             data["type"] = "LIVE_UPDATE"
+            data["risk_status"] = "Monitoring..."
+            data["color"] = "#d97706" # Orange color for monitoring
             data["protocol"] = "TCP"
             # Preserve bytes_sent and bytes_received from client
             if "bytes_sent" not in data:
@@ -115,17 +117,6 @@ async def websocket_tracking_endpoint(websocket: WebSocket):
             if "bytes_received" not in data:
                 data["bytes_received"] = 0
             
-            t = CustomThresholds()
-            score_data = calculate_threat_score(data, t)
-            data["threat_score"] = score_data["threat_score"]
-            data["risk_status"] = f"Monitoring... (Score: {score_data['threat_score']})"
-            data["color"] = "#d97706" # Orange color for monitoring
-
-            if score_data["threat_score"] >= 0.7:
-                await websocket.send_json({"type": "BLOCK_USER", "threat_score": score_data["threat_score"]})
-                data["risk_status"] = f"CRITICAL ANOMALY (Blocked - Score: {score_data['threat_score']})"
-                data["color"] = "#dc2626"
-
             await manager.broadcast_to_soc(data)
     except WebSocketDisconnect:
         pass
@@ -137,42 +128,6 @@ class CustomThresholds(BaseModel):
     suspicious_attempts: int = 4      # OTP triggered at this many attempts
     brute_force_attempts: int = 6     # Brute-force critical at this many attempts
     high_data_mb: float = 50
-
-def calculate_threat_score(data: dict, t: CustomThresholds) -> dict:
-    is_bot = data.get("avg_keystroke_delay", 1.0) < t.bot_keystroke_delay or data.get("mouse_velocity", 0) > t.bot_mouse_velocity
-    is_distracted = "Slack" in data.get("active_processes", "") or data.get("tab_switch_count", 0) > 2
-    behavior_anomaly = 1.0 if is_bot else (0.5 if is_distracted else 0.0)
-
-    attempts = max(data.get("attempts", 1), data.get("login_attempts_override", 1))
-    has_excessive_attempts = attempts >= t.suspicious_attempts
-    is_brute_force = attempts >= t.brute_force_attempts
-    login_anomaly = 1.0 if is_brute_force else (0.8 if has_excessive_attempts else 0.0)
-
-    is_hacker = any(tool in data.get("active_processes", "") for tool in ["Tor", "Wireshark", "nmap", "Burp", "Hydra", "Metasploit", "Netcat"])
-    bytes_sent_mb = data.get("bytes_sent", 0) / (1024 * 1024)
-    is_high_data = bytes_sent_mb >= t.high_data_mb
-    network_anomaly = 1.0 if is_hacker else (0.8 if is_high_data else 0.0)
-
-    weights = (0.3, 0.5, 0.2)
-    threat_score = (weights[0] * login_anomaly +
-                    weights[1] * behavior_anomaly +
-                    weights[2] * network_anomaly)
-    
-    if threat_score < 0.4:
-        verdict = 'SAFE'
-        color = '#16a34a'
-    elif threat_score < 0.7:
-        verdict = 'WARNING (MFA Recommended)'
-        color = '#f59e0b'
-    else:
-        verdict = 'CRITICAL (Block)'
-        color = '#dc2626'
-        
-    return {
-        'threat_score': round(threat_score, 3),
-        'verdict': verdict,
-        'color': color
-    }
 
 class LoginPayload(BaseModel):
     username: str
@@ -205,9 +160,6 @@ async def evaluate_login(payload: LoginPayload):
 
     # Use custom thresholds from payload if provided, otherwise use defaults
     t = payload.custom_thresholds or CustomThresholds()
-
-    score_data = calculate_threat_score(payload.dict(), t)
-    full_record["threat_score"] = score_data["threat_score"]
     
     # AI EVALUATION LOGIC WITH ADAPTIVE MFA
     is_bot = payload.avg_keystroke_delay < t.bot_keystroke_delay or payload.mouse_velocity > t.bot_mouse_velocity
