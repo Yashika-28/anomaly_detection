@@ -139,102 +139,962 @@ if (!globalDb.mockDb) {
         },
         sessions: [
             {
-                id: "anamika-" + (Date.now() - 1000 * 60 * 15),
-                username: "anamika",
-                attempts: 4,
+                id: "akshi-" + (1777912418281),
+                username: "akshi",
+                attempts: 5,
                 telemetry: {
-                    ip_address: "10.0.0.84",
-                    lat: 34.0522,
-                    lon: -118.2437,
-                    os: "Kali Linux / Headless",
-                    resolution: "1920x1080",
-                    avg_keystroke_delay: 0.005,
-                    mouse_velocity: 5200,
-                    tab_switch_count: 5,
-                    active_processes: "Tor Browser, Wireshark, Cmd.exe",
-                    bytes_sent: 1800000000,
-                    risk_status: ["ANOMALY_BOT"]
-                },
-                timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString()
+                    "ip_address": "192.168.3.27",
+                    "lat": 32.2595,
+                    "lon": -44.5234,
+                    "os": "Windows 11",
+                    "resolution": "1920x1080",
+                    "avg_keystroke_delay": 0.044,
+                    "mouse_velocity": 8090,
+                    "tab_switch_count": 10,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 293927426,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777912418281).toISOString()
             },
             {
-                id: "priyanshi-" + (Date.now() - 1000 * 60 * 60 * 2),
+                id: "archit-" + (1777910918281),
+                username: "archit",
+                attempts: 2,
+                telemetry: {
+                    "ip_address": "192.168.2.32",
+                    "lat": 34.5489,
+                    "lon": 114.189,
+                    "os": "Windows 11",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.045,
+                    "mouse_velocity": 4431,
+                    "tab_switch_count": 6,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 288212017,
+                    "risk_status": [
+                                        "ANOMALY_BOT"
+                    ]
+},
+                timestamp: new Date(1777910918281).toISOString()
+            },
+            {
+                id: "anamika-" + (1777907978281),
+                username: "anamika",
+                attempts: 6,
+                telemetry: {
+                    "ip_address": "192.168.4.196",
+                    "lat": 44.8511,
+                    "lon": 4.5859,
+                    "os": "Windows 11",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.002,
+                    "mouse_velocity": 4199,
+                    "tab_switch_count": 3,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 852903043,
+                    "risk_status": [
+                                        "ANOMALY_BOT"
+                    ]
+},
+                timestamp: new Date(1777907978281).toISOString()
+            },
+            {
+                id: "akshi-" + (1777907198281),
+                username: "akshi",
+                attempts: 5,
+                telemetry: {
+                    "ip_address": "192.168.5.25",
+                    "lat": 42.45,
+                    "lon": 109.0013,
+                    "os": "Ubuntu 22.04",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.047,
+                    "mouse_velocity": 8266,
+                    "tab_switch_count": 4,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 1049800047,
+                    "risk_status": [
+                                        "UNKNOWN_LOCATION"
+                    ]
+},
+                timestamp: new Date(1777907198281).toISOString()
+            },
+            {
+                id: "priyanshi-" + (1777902098281),
+                username: "priyanshi",
+                attempts: 2,
+                telemetry: {
+                    "ip_address": "192.168.4.3",
+                    "lat": 34.58,
+                    "lon": 8.5128,
+                    "os": "Kali Linux",
+                    "resolution": "1920x1080",
+                    "avg_keystroke_delay": 0.021,
+                    "mouse_velocity": 6682,
+                    "tab_switch_count": 12,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 148678066,
+                    "risk_status": [
+                                        "ANOMALY_BOT"
+                    ]
+},
+                timestamp: new Date(1777902098281).toISOString()
+            },
+            {
+                id: "archit-" + (1777906418281),
+                username: "archit",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.3.74",
+                    "lat": 45.3114,
+                    "lon": -87.2584,
+                    "os": "Kali Linux",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.103,
+                    "mouse_velocity": 744,
+                    "tab_switch_count": 0,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 14308712,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777906418281).toISOString()
+            },
+            {
+                id: "anamika-" + (1777904138281),
+                username: "anamika",
+                attempts: 6,
+                telemetry: {
+                    "ip_address": "192.168.4.10",
+                    "lat": 34.6173,
+                    "lon": 61.5779,
+                    "os": "Windows 11",
+                    "resolution": "1920x1080",
+                    "avg_keystroke_delay": 0.043,
+                    "mouse_velocity": 5505,
+                    "tab_switch_count": 7,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 2159292110,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777904138281).toISOString()
+            },
+            {
+                id: "archit-" + (1777896878281),
+                username: "archit",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.1.184",
+                    "lat": 24.545,
+                    "lon": -98.1664,
+                    "os": "macOS Sonoma",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.159,
+                    "mouse_velocity": 787,
+                    "tab_switch_count": 1,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 18180094,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777896878281).toISOString()
+            },
+            {
+                id: "archit-" + (1777883618281),
+                username: "archit",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.1.126",
+                    "lat": 44.5572,
+                    "lon": -82.1449,
+                    "os": "macOS Sonoma",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.117,
+                    "mouse_velocity": 766,
+                    "tab_switch_count": 2,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 15329354,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777883618281).toISOString()
+            },
+            {
+                id: "priyanshi-" + (1777904318281),
+                username: "priyanshi",
+                attempts: 2,
+                telemetry: {
+                    "ip_address": "192.168.5.120",
+                    "lat": 25.5945,
+                    "lon": -74.5369,
+                    "os": "Windows 11",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.025,
+                    "mouse_velocity": 7007,
+                    "tab_switch_count": 4,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 1212569827,
+                    "risk_status": [
+                                        "ANOMALY_BOT"
+                    ]
+},
+                timestamp: new Date(1777904318281).toISOString()
+            },
+            {
+                id: "archit-" + (1777896218281),
+                username: "archit",
+                attempts: 2,
+                telemetry: {
+                    "ip_address": "192.168.1.233",
+                    "lat": 25.0306,
+                    "lon": -73.3638,
+                    "os": "macOS Sonoma",
+                    "resolution": "1920x1080",
+                    "avg_keystroke_delay": 0.041,
+                    "mouse_velocity": 4444,
+                    "tab_switch_count": 8,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 2273528060,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777896218281).toISOString()
+            },
+            {
+                id: "priyanshi-" + (1777908458281),
+                username: "priyanshi",
+                attempts: 4,
+                telemetry: {
+                    "ip_address": "192.168.4.113",
+                    "lat": 46.58,
+                    "lon": 91.4921,
+                    "os": "Kali Linux",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.01,
+                    "mouse_velocity": 8298,
+                    "tab_switch_count": 13,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 2613824535,
+                    "risk_status": [
+                                        "ANOMALY_BOT"
+                    ]
+},
+                timestamp: new Date(1777908458281).toISOString()
+            },
+            {
+                id: "akshi-" + (1777887218281),
+                username: "akshi",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.2.40",
+                    "lat": 34.6075,
+                    "lon": 42.968,
+                    "os": "Windows 11",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.198,
+                    "mouse_velocity": 1015,
+                    "tab_switch_count": 0,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 5589093,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777887218281).toISOString()
+            },
+            {
+                id: "archit-" + (1777892918281),
+                username: "archit",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.5.201",
+                    "lat": 43.7816,
+                    "lon": 22.3767,
+                    "os": "Kali Linux",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.109,
+                    "mouse_velocity": 1166,
+                    "tab_switch_count": 2,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 15745311,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777892918281).toISOString()
+            },
+            {
+                id: "priyanshi-" + (1777897298281),
+                username: "priyanshi",
+                attempts: 6,
+                telemetry: {
+                    "ip_address": "192.168.3.123",
+                    "lat": 39.0445,
+                    "lon": -89.746,
+                    "os": "Windows 11",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.017,
+                    "mouse_velocity": 4064,
+                    "tab_switch_count": 4,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 1737865793,
+                    "risk_status": [
+                                        "UNKNOWN_LOCATION"
+                    ]
+},
+                timestamp: new Date(1777897298281).toISOString()
+            },
+            {
+                id: "anamika-" + (1777884518281),
+                username: "anamika",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.2.164",
+                    "lat": 31.762,
+                    "lon": -110.0706,
+                    "os": "Windows 11",
+                    "resolution": "1920x1080",
+                    "avg_keystroke_delay": 0.148,
+                    "mouse_velocity": 821,
+                    "tab_switch_count": 2,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 13322820,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777884518281).toISOString()
+            },
+            {
+                id: "akshi-" + (1777854818281),
+                username: "akshi",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.3.75",
+                    "lat": 27.138,
+                    "lon": 112.497,
+                    "os": "macOS Sonoma",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.155,
+                    "mouse_velocity": 970,
+                    "tab_switch_count": 1,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 5954797,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777854818281).toISOString()
+            },
+            {
+                id: "alice_wong-" + (1777905278281),
+                username: "alice_wong",
+                attempts: 4,
+                telemetry: {
+                    "ip_address": "192.168.1.111",
+                    "lat": 28.4985,
+                    "lon": 63.5774,
+                    "os": "macOS Sonoma",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.008,
+                    "mouse_velocity": 4533,
+                    "tab_switch_count": 5,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 1234015300,
+                    "risk_status": [
+                                        "UNKNOWN_LOCATION"
+                    ]
+},
+                timestamp: new Date(1777905278281).toISOString()
+            },
+            {
+                id: "anamika-" + (1777869218281),
+                username: "anamika",
+                attempts: 5,
+                telemetry: {
+                    "ip_address": "192.168.1.189",
+                    "lat": 28.5559,
+                    "lon": 7.7808,
+                    "os": "Windows 11",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.036,
+                    "mouse_velocity": 7480,
+                    "tab_switch_count": 5,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 2266956842,
+                    "risk_status": [
+                                        "ANOMALY_BOT"
+                    ]
+},
+                timestamp: new Date(1777869218281).toISOString()
+            },
+            {
+                id: "akshi-" + (1777846298281),
+                username: "akshi",
+                attempts: 5,
+                telemetry: {
+                    "ip_address": "192.168.5.246",
+                    "lat": 20.2817,
+                    "lon": 74.8835,
+                    "os": "Ubuntu 22.04",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.045,
+                    "mouse_velocity": 6772,
+                    "tab_switch_count": 12,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 1469198362,
+                    "risk_status": [
+                                        "ANOMALY_BOT"
+                    ]
+},
+                timestamp: new Date(1777846298281).toISOString()
+            },
+            {
+                id: "alice_wong-" + (1777864418281),
+                username: "alice_wong",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.5.53",
+                    "lat": 45.5172,
+                    "lon": -23.4039,
+                    "os": "Kali Linux",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.198,
+                    "mouse_velocity": 1085,
+                    "tab_switch_count": 2,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 10854390,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777864418281).toISOString()
+            },
+            {
+                id: "archit-" + (1777885958281),
+                username: "archit",
+                attempts: 4,
+                telemetry: {
+                    "ip_address": "192.168.3.98",
+                    "lat": 43.5446,
+                    "lon": -8.6832,
+                    "os": "Ubuntu 22.04",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.039,
+                    "mouse_velocity": 7018,
+                    "tab_switch_count": 7,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 380756032,
+                    "risk_status": [
+                                        "UNKNOWN_LOCATION"
+                    ]
+},
+                timestamp: new Date(1777885958281).toISOString()
+            },
+            {
+                id: "alice_wong-" + (1777847738281),
+                username: "alice_wong",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.2.104",
+                    "lat": 41.093,
+                    "lon": -110.4215,
+                    "os": "macOS Sonoma",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.158,
+                    "mouse_velocity": 821,
+                    "tab_switch_count": 2,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 16503382,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777847738281).toISOString()
+            },
+            {
+                id: "archit-" + (1777873778281),
+                username: "archit",
+                attempts: 3,
+                telemetry: {
+                    "ip_address": "192.168.3.206",
+                    "lat": 43.0606,
+                    "lon": 50.3947,
+                    "os": "macOS Sonoma",
+                    "resolution": "1920x1080",
+                    "avg_keystroke_delay": 0.017,
+                    "mouse_velocity": 5341,
+                    "tab_switch_count": 10,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 2894256594,
+                    "risk_status": [
+                                        "UNKNOWN_LOCATION"
+                    ]
+},
+                timestamp: new Date(1777873778281).toISOString()
+            },
+            {
+                id: "priyanshi-" + (1777838978281),
                 username: "priyanshi",
                 attempts: 1,
                 telemetry: {
-                    ip_address: "192.168.1.15",
-                    lat: 48.8566,
-                    lon: 2.3522,
-                    os: "macOS Sonoma",
-                    resolution: "2880x1800",
-                    avg_keystroke_delay: 0.12,
-                    mouse_velocity: 840,
-                    tab_switch_count: 0,
-                    active_processes: "Outlook, Excel, Chrome",
-                    bytes_sent: 14000000,
-                    risk_status: ["SAFE"]
-                },
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
+                    "ip_address": "192.168.4.219",
+                    "lat": 23.7859,
+                    "lon": 93.3389,
+                    "os": "Ubuntu 22.04",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.169,
+                    "mouse_velocity": 688,
+                    "tab_switch_count": 0,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 13249461,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777838978281).toISOString()
             },
             {
-                id: "akshi-" + (Date.now() - 1000 * 60 * 45),
-                username: "akshi",
+                id: "alice_wong-" + (1777843418281),
+                username: "alice_wong",
+                attempts: 5,
+                telemetry: {
+                    "ip_address": "192.168.3.45",
+                    "lat": 20.4449,
+                    "lon": -90.5306,
+                    "os": "macOS Sonoma",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.025,
+                    "mouse_velocity": 7561,
+                    "tab_switch_count": 9,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 1193350395,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777843418281).toISOString()
+            },
+            {
+                id: "archit-" + (1777843778281),
+                username: "archit",
                 attempts: 2,
                 telemetry: {
-                    ip_address: "192.168.1.15",
-                    lat: 40.7128,
-                    lon: -74.0060,
-                    os: "Windows 11",
-                    resolution: "1920x1080",
-                    avg_keystroke_delay: 0.15,
-                    mouse_velocity: 600,
-                    tab_switch_count: 1,
-                    active_processes: "Outlook, Teams, Chrome",
-                    bytes_sent: 5000000,
-                    risk_status: ["SAFE"]
-                },
-                timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString()
+                    "ip_address": "192.168.4.232",
+                    "lat": 24.6192,
+                    "lon": 100.0302,
+                    "os": "Ubuntu 22.04",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.014,
+                    "mouse_velocity": 7747,
+                    "tab_switch_count": 15,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 1780901370,
+                    "risk_status": [
+                                        "UNKNOWN_LOCATION"
+                    ]
+},
+                timestamp: new Date(1777843778281).toISOString()
             },
             {
-                id: "alice_wong-" + (Date.now() - 1000 * 60 * 30),
+                id: "priyanshi-" + (1777871918281),
+                username: "priyanshi",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.4.139",
+                    "lat": 34.546,
+                    "lon": -102.6066,
+                    "os": "Ubuntu 22.04",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.126,
+                    "mouse_velocity": 834,
+                    "tab_switch_count": 0,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 6809031,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777871918281).toISOString()
+            },
+            {
+                id: "priyanshi-" + (1777885538281),
+                username: "priyanshi",
+                attempts: 6,
+                telemetry: {
+                    "ip_address": "192.168.3.65",
+                    "lat": 35.5105,
+                    "lon": -44.6407,
+                    "os": "macOS Sonoma",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.033,
+                    "mouse_velocity": 3349,
+                    "tab_switch_count": 4,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 184852206,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777885538281).toISOString()
+            },
+            {
+                id: "akshi-" + (1777853258281),
+                username: "akshi",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.5.97",
+                    "lat": 47.3566,
+                    "lon": 28.6287,
+                    "os": "Windows 11",
+                    "resolution": "1920x1080",
+                    "avg_keystroke_delay": 0.197,
+                    "mouse_velocity": 575,
+                    "tab_switch_count": 2,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 12627001,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777853258281).toISOString()
+            },
+            {
+                id: "priyanshi-" + (1777822418281),
+                username: "priyanshi",
+                attempts: 6,
+                telemetry: {
+                    "ip_address": "192.168.5.154",
+                    "lat": 39.0283,
+                    "lon": 103.9101,
+                    "os": "macOS Sonoma",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.033,
+                    "mouse_velocity": 7744,
+                    "tab_switch_count": 5,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 1396282534,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777822418281).toISOString()
+            },
+            {
+                id: "anamika-" + (1777888238281),
+                username: "anamika",
+                attempts: 4,
+                telemetry: {
+                    "ip_address": "192.168.2.172",
+                    "lat": 22.4089,
+                    "lon": 38.2777,
+                    "os": "Ubuntu 22.04",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.049,
+                    "mouse_velocity": 3773,
+                    "tab_switch_count": 11,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 472719731,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777888238281).toISOString()
+            },
+            {
+                id: "priyanshi-" + (1777827938281),
+                username: "priyanshi",
+                attempts: 3,
+                telemetry: {
+                    "ip_address": "192.168.2.228",
+                    "lat": 43.7981,
+                    "lon": 19.7213,
+                    "os": "Kali Linux",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.022,
+                    "mouse_velocity": 6468,
+                    "tab_switch_count": 7,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 2401303676,
+                    "risk_status": [
+                                        "UNKNOWN_LOCATION"
+                    ]
+},
+                timestamp: new Date(1777827938281).toISOString()
+            },
+            {
+                id: "alice_wong-" + (1777870838281),
+                username: "alice_wong",
+                attempts: 2,
+                telemetry: {
+                    "ip_address": "192.168.2.229",
+                    "lat": 43.3777,
+                    "lon": 8.361,
+                    "os": "Ubuntu 22.04",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.033,
+                    "mouse_velocity": 4755,
+                    "tab_switch_count": 4,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 728579901,
+                    "risk_status": [
+                                        "UNKNOWN_LOCATION"
+                    ]
+},
+                timestamp: new Date(1777870838281).toISOString()
+            },
+            {
+                id: "priyanshi-" + (1777863458281),
+                username: "priyanshi",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.5.21",
+                    "lat": 47.9886,
+                    "lon": 104.262,
+                    "os": "Windows 11",
+                    "resolution": "1920x1080",
+                    "avg_keystroke_delay": 0.143,
+                    "mouse_velocity": 619,
+                    "tab_switch_count": 2,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 9487942,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777863458281).toISOString()
+            },
+            {
+                id: "akshi-" + (1777885118281),
+                username: "akshi",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.4.116",
+                    "lat": 30.3327,
+                    "lon": 20.8657,
+                    "os": "Windows 11",
+                    "resolution": "1920x1080",
+                    "avg_keystroke_delay": 0.179,
+                    "mouse_velocity": 955,
+                    "tab_switch_count": 0,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 16239700,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777885118281).toISOString()
+            },
+            {
+                id: "alice_wong-" + (1777832498281),
+                username: "alice_wong",
+                attempts: 3,
+                telemetry: {
+                    "ip_address": "192.168.2.113",
+                    "lat": 35.9512,
+                    "lon": 82.1896,
+                    "os": "Windows 11",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.031,
+                    "mouse_velocity": 8066,
+                    "tab_switch_count": 12,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 2559081108,
+                    "risk_status": [
+                                        "ANOMALY_BOT"
+                    ]
+},
+                timestamp: new Date(1777832498281).toISOString()
+            },
+            {
+                id: "anamika-" + (1777896878281),
+                username: "anamika",
+                attempts: 6,
+                telemetry: {
+                    "ip_address": "192.168.2.85",
+                    "lat": 46.9598,
+                    "lon": 18.5965,
+                    "os": "Windows 11",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.045,
+                    "mouse_velocity": 3048,
+                    "tab_switch_count": 10,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 969117792,
+                    "risk_status": [
+                                        "ANOMALY_BOT"
+                    ]
+},
+                timestamp: new Date(1777896878281).toISOString()
+            },
+            {
+                id: "anamika-" + (1777805258281),
+                username: "anamika",
+                attempts: 4,
+                telemetry: {
+                    "ip_address": "192.168.2.66",
+                    "lat": 26.9194,
+                    "lon": 106.5947,
+                    "os": "macOS Sonoma",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.041,
+                    "mouse_velocity": 5967,
+                    "tab_switch_count": 3,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 2644152876,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777805258281).toISOString()
+            },
+            {
+                id: "archit-" + (1777846898281),
+                username: "archit",
+                attempts: 2,
+                telemetry: {
+                    "ip_address": "192.168.5.57",
+                    "lat": 29.4282,
+                    "lon": -47.9174,
+                    "os": "Kali Linux",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.047,
+                    "mouse_velocity": 8720,
+                    "tab_switch_count": 7,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 275625721,
+                    "risk_status": [
+                                        "UNKNOWN_LOCATION"
+                    ]
+},
+                timestamp: new Date(1777846898281).toISOString()
+            },
+            {
+                id: "akshi-" + (1777773218281),
+                username: "akshi",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.2.217",
+                    "lat": 27.6862,
+                    "lon": 103.1575,
+                    "os": "Ubuntu 22.04",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.164,
+                    "mouse_velocity": 877,
+                    "tab_switch_count": 1,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 11373465,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777773218281).toISOString()
+            },
+            {
+                id: "akshi-" + (1777880438281),
+                username: "akshi",
+                attempts: 1,
+                telemetry: {
+                    "ip_address": "192.168.3.254",
+                    "lat": 33.3479,
+                    "lon": 79.8222,
+                    "os": "macOS Sonoma",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.196,
+                    "mouse_velocity": 903,
+                    "tab_switch_count": 1,
+                    "active_processes": "Chrome, Outlook",
+                    "bytes_sent": 9059610,
+                    "risk_status": [
+                                        "SAFE"
+                    ]
+},
+                timestamp: new Date(1777880438281).toISOString()
+            },
+            {
+                id: "alice_wong-" + (1777897298281),
+                username: "alice_wong",
+                attempts: 2,
+                telemetry: {
+                    "ip_address": "192.168.4.177",
+                    "lat": 41.8872,
+                    "lon": 69.253,
+                    "os": "Windows 11",
+                    "resolution": "2560x1440",
+                    "avg_keystroke_delay": 0.025,
+                    "mouse_velocity": 5817,
+                    "tab_switch_count": 13,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 1440057960,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777897298281).toISOString()
+            },
+            {
+                id: "alice_wong-" + (1777850498281),
                 username: "alice_wong",
                 attempts: 6,
                 telemetry: {
-                    ip_address: "10.0.0.84",
-                    lat: 55.7558,
-                    lon: 37.6173,
-                    os: "Ubuntu 22.04",
-                    resolution: "2560x1440",
-                    avg_keystroke_delay: 0.008,
-                    mouse_velocity: 7200,
-                    tab_switch_count: 8,
-                    active_processes: "Tor Browser, nmap, Python3",
-                    bytes_sent: 2500000000,
-                    risk_status: ["ANOMALY_BOT"]
-                },
-                timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString()
+                    "ip_address": "192.168.4.247",
+                    "lat": 42.5096,
+                    "lon": -95.4972,
+                    "os": "macOS Sonoma",
+                    "resolution": "1920x1080",
+                    "avg_keystroke_delay": 0.022,
+                    "mouse_velocity": 4365,
+                    "tab_switch_count": 6,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 636610320,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777850498281).toISOString()
             },
             {
-                id: "alice_wong-brute-" + (Date.now() - 1000 * 60 * 25),
-                username: "alice_wong",
-                attempts: 6,
+                id: "anamika-" + (1777772498281),
+                username: "anamika",
+                attempts: 4,
                 telemetry: {
-                    ip_address: "10.0.0.84",
-                    lat: 34.0522,
-                    lon: -118.2437,
-                    os: "Ubuntu 22.04",
-                    resolution: "2560x1440",
-                    avg_keystroke_delay: 0.003,
-                    mouse_velocity: 9000,
-                    tab_switch_count: 12,
-                    active_processes: "Hydra, Burp Suite, Firefox",
-                    bytes_sent: 3200000000,
-                    risk_status: ["ANOMALY_BOT", "BRUTE_FORCE"]
-                },
-                timestamp: new Date(Date.now() - 1000 * 60 * 25).toISOString()
+                    "ip_address": "192.168.4.109",
+                    "lat": 47.5072,
+                    "lon": -17.6943,
+                    "os": "Ubuntu 22.04",
+                    "resolution": "2880x1800",
+                    "avg_keystroke_delay": 0.036,
+                    "mouse_velocity": 8270,
+                    "tab_switch_count": 6,
+                    "active_processes": "Tor, nmap, Wireshark",
+                    "bytes_sent": 556559519,
+                    "risk_status": [
+                                        "ANOMALY_BOT",
+                                        "BRUTE_FORCE"
+                    ]
+},
+                timestamp: new Date(1777772498281).toISOString()
             }
-        ]
-    };
+        ]    };
 }
 
 export async function POST(req: Request) {
