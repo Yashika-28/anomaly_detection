@@ -100,12 +100,16 @@ async def websocket_tracking_endpoint(websocket: WebSocket):
                     "os": data.get("os", ""),
                     "resolution": data.get("resolution", ""),
                     "time": datetime.datetime.now().strftime("%H:%M:%S"),
-                    "risk_status": "Session Ended",
+                    "risk_status": "locked/final (signedout)",
                     "color": "#64748b"
                 }
                 await manager.broadcast_to_soc(logout_event)
                 continue
 
+            if data.get("is_login_flow"):
+                # Skip tracking broadcast during login - let /api/evaluate handle single log
+                continue
+            
             data["time"] = datetime.datetime.now().strftime("%H:%M:%S")
             data["type"] = "LIVE_UPDATE"
             data["protocol"] = "TCP"
@@ -120,7 +124,7 @@ async def websocket_tracking_endpoint(websocket: WebSocket):
             data["threat_score"] = score_data["threat_score"]
             data["risk_status"] = f"Monitoring... (Score: {score_data['threat_score']})"
             data["color"] = "#d97706" # Orange color for monitoring
-
+            
             if score_data["threat_score"] >= 0.7:
                 await websocket.send_json({"type": "BLOCK_USER", "threat_score": score_data["threat_score"]})
                 data["risk_status"] = f"CRITICAL ANOMALY (Blocked - Score: {score_data['threat_score']})"
@@ -191,8 +195,8 @@ class LoginPayload(BaseModel):
     login_attempts_override: int
     email: str | None = "nischalsharma2037@gmail.com"
     custom_thresholds: CustomThresholds | None = None
-    # Per-user trusted locations for location-risk check (fetched from DB by prototype)
     user_trusted_locations: list | None = None
+    is_login_flow: bool = False
 
 @app.post("/api/evaluate")
 async def evaluate_login(payload: LoginPayload):
@@ -252,8 +256,13 @@ async def evaluate_login(payload: LoginPayload):
     if is_unknown_location:
         full_record["risk_status"] = str(full_record.get("risk_status", "")) + " | UNKNOWN_LOCATION"
 
+    # Always broadcast 1 combined log
+    full_record["risk_status"] = full_record["risk_status"] + " (streaming)" if "SAFE" in full_record["risk_status"] else full_record["risk_status"]
     await manager.broadcast_to_soc(full_record)
+    
     return {"status": action, "message": "Evaluation complete"}
+
+
 
 # --- NEW: OTP Verification Endpoint ---
 class VerifyPayload(BaseModel):

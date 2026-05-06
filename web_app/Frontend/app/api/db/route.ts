@@ -27,7 +27,7 @@ if (!globalDb.mockDb) {
             "priyanshi": {
                 password: "password123",
                 email: "priyanshi22csu393@ncuinda.edu",
-                attempts: 1,
+                attempts: 0,
                 trustedLocations: [
                     { lat: 48.8566, lon: 2.3522, label: "Paris (Home)" },
                     { lat: 51.5074, lon: -0.1278, label: "London (Office)" },
@@ -50,7 +50,7 @@ if (!globalDb.mockDb) {
             "anamika": {
                 password: "admin_password",
                 email: "anamika22csu015@ncuindia.edu",
-                attempts: 4,
+                attempts: 0,
                 trustedLocations: [
                     { lat: 34.0522, lon: -118.2437, label: "Los Angeles (HQ)" },
                     { lat: 37.7749, lon: -122.4194, label: "San Francisco (DC)" }
@@ -72,7 +72,7 @@ if (!globalDb.mockDb) {
             "akshi": {
                 password: "secure456",
                 email: "akshi22csu412@ncuindia.edu",
-                attempts: 2,
+                attempts: 0,
                 trustedLocations: [
                     { lat: 40.7128, lon: -74.006, label: "New York (Home)" },
                     { lat: 42.3601, lon: -71.0589, label: "Boston (Office)" }
@@ -94,7 +94,7 @@ if (!globalDb.mockDb) {
             "archit": {
                 password: "archit@456",
                 email: "archit22csu025@ncuindia.edu",
-                attempts: 1,
+                attempts: 0,
                 trustedLocations: [
                     { lat: 28.6139, lon: 77.2090, label: "Delhi (Home)" },
                     { lat: 28.4595, lon: 77.0266, label: "Gurugram (Office)" }
@@ -154,10 +154,10 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 293927426,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777912418281).toISOString()
             },
             {
@@ -176,9 +176,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 288212017,
                     "risk_status": [
-                                        "ANOMALY_BOT"
+                        "ANOMALY_BOT"
                     ]
-},
+                },
                 timestamp: new Date(1777910918281).toISOString()
             },
             {
@@ -197,9 +197,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 852903043,
                     "risk_status": [
-                                        "ANOMALY_BOT"
+                        "ANOMALY_BOT"
                     ]
-},
+                },
                 timestamp: new Date(1777907978281).toISOString()
             },
             {
@@ -218,9 +218,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 1049800047,
                     "risk_status": [
-                                        "UNKNOWN_LOCATION"
+                        "UNKNOWN_LOCATION"
                     ]
-},
+                },
                 timestamp: new Date(1777907198281).toISOString()
             },
             {
@@ -239,9 +239,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 148678066,
                     "risk_status": [
-                                        "ANOMALY_BOT"
+                        "ANOMALY_BOT"
                     ]
-},
+                },
                 timestamp: new Date(1777902098281).toISOString()
             },
             {
@@ -260,9 +260,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 14308712,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777906418281).toISOString()
             },
             {
@@ -281,10 +281,10 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 2159292110,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777904138281).toISOString()
             },
             {
@@ -303,9 +303,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 18180094,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777896878281).toISOString()
             },
             {
@@ -324,9 +324,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 15329354,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777883618281).toISOString()
             },
             {
@@ -345,9 +345,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 1212569827,
                     "risk_status": [
-                                        "ANOMALY_BOT"
+                        "ANOMALY_BOT"
                     ]
-},
+                },
                 timestamp: new Date(1777904318281).toISOString()
             },
             {
@@ -366,10 +366,10 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 2273528060,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777896218281).toISOString()
             },
             {
@@ -388,9 +388,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 2613824535,
                     "risk_status": [
-                                        "ANOMALY_BOT"
+                        "ANOMALY_BOT"
                     ]
-},
+                },
                 timestamp: new Date(1777908458281).toISOString()
             },
             {
@@ -409,9 +409,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 5589093,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777887218281).toISOString()
             },
             {
@@ -430,9 +430,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 15745311,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777892918281).toISOString()
             },
             {
@@ -451,9 +451,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 1737865793,
                     "risk_status": [
-                                        "UNKNOWN_LOCATION"
+                        "UNKNOWN_LOCATION"
                     ]
-},
+                },
                 timestamp: new Date(1777897298281).toISOString()
             },
             {
@@ -472,9 +472,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 13322820,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777884518281).toISOString()
             },
             {
@@ -493,9 +493,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 5954797,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777854818281).toISOString()
             },
             {
@@ -514,9 +514,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 1234015300,
                     "risk_status": [
-                                        "UNKNOWN_LOCATION"
+                        "UNKNOWN_LOCATION"
                     ]
-},
+                },
                 timestamp: new Date(1777905278281).toISOString()
             },
             {
@@ -535,9 +535,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 2266956842,
                     "risk_status": [
-                                        "ANOMALY_BOT"
+                        "ANOMALY_BOT"
                     ]
-},
+                },
                 timestamp: new Date(1777869218281).toISOString()
             },
             {
@@ -556,9 +556,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 1469198362,
                     "risk_status": [
-                                        "ANOMALY_BOT"
+                        "ANOMALY_BOT"
                     ]
-},
+                },
                 timestamp: new Date(1777846298281).toISOString()
             },
             {
@@ -577,9 +577,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 10854390,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777864418281).toISOString()
             },
             {
@@ -598,9 +598,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 380756032,
                     "risk_status": [
-                                        "UNKNOWN_LOCATION"
+                        "UNKNOWN_LOCATION"
                     ]
-},
+                },
                 timestamp: new Date(1777885958281).toISOString()
             },
             {
@@ -619,9 +619,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 16503382,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777847738281).toISOString()
             },
             {
@@ -640,9 +640,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 2894256594,
                     "risk_status": [
-                                        "UNKNOWN_LOCATION"
+                        "UNKNOWN_LOCATION"
                     ]
-},
+                },
                 timestamp: new Date(1777873778281).toISOString()
             },
             {
@@ -661,9 +661,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 13249461,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777838978281).toISOString()
             },
             {
@@ -682,10 +682,10 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 1193350395,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777843418281).toISOString()
             },
             {
@@ -704,9 +704,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 1780901370,
                     "risk_status": [
-                                        "UNKNOWN_LOCATION"
+                        "UNKNOWN_LOCATION"
                     ]
-},
+                },
                 timestamp: new Date(1777843778281).toISOString()
             },
             {
@@ -725,9 +725,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 6809031,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777871918281).toISOString()
             },
             {
@@ -746,10 +746,10 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 184852206,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777885538281).toISOString()
             },
             {
@@ -768,9 +768,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 12627001,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777853258281).toISOString()
             },
             {
@@ -789,10 +789,10 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 1396282534,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777822418281).toISOString()
             },
             {
@@ -811,10 +811,10 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 472719731,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777888238281).toISOString()
             },
             {
@@ -833,9 +833,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 2401303676,
                     "risk_status": [
-                                        "UNKNOWN_LOCATION"
+                        "UNKNOWN_LOCATION"
                     ]
-},
+                },
                 timestamp: new Date(1777827938281).toISOString()
             },
             {
@@ -854,9 +854,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 728579901,
                     "risk_status": [
-                                        "UNKNOWN_LOCATION"
+                        "UNKNOWN_LOCATION"
                     ]
-},
+                },
                 timestamp: new Date(1777870838281).toISOString()
             },
             {
@@ -875,9 +875,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 9487942,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777863458281).toISOString()
             },
             {
@@ -896,9 +896,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 16239700,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777885118281).toISOString()
             },
             {
@@ -917,9 +917,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 2559081108,
                     "risk_status": [
-                                        "ANOMALY_BOT"
+                        "ANOMALY_BOT"
                     ]
-},
+                },
                 timestamp: new Date(1777832498281).toISOString()
             },
             {
@@ -938,9 +938,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 969117792,
                     "risk_status": [
-                                        "ANOMALY_BOT"
+                        "ANOMALY_BOT"
                     ]
-},
+                },
                 timestamp: new Date(1777896878281).toISOString()
             },
             {
@@ -959,10 +959,10 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 2644152876,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777805258281).toISOString()
             },
             {
@@ -981,9 +981,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 275625721,
                     "risk_status": [
-                                        "UNKNOWN_LOCATION"
+                        "UNKNOWN_LOCATION"
                     ]
-},
+                },
                 timestamp: new Date(1777846898281).toISOString()
             },
             {
@@ -1002,9 +1002,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 11373465,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777773218281).toISOString()
             },
             {
@@ -1023,9 +1023,9 @@ if (!globalDb.mockDb) {
                     "active_processes": "Chrome, Outlook",
                     "bytes_sent": 9059610,
                     "risk_status": [
-                                        "SAFE"
+                        "SAFE"
                     ]
-},
+                },
                 timestamp: new Date(1777880438281).toISOString()
             },
             {
@@ -1044,10 +1044,10 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 1440057960,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777897298281).toISOString()
             },
             {
@@ -1066,10 +1066,10 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 636610320,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777850498281).toISOString()
             },
             {
@@ -1088,13 +1088,14 @@ if (!globalDb.mockDb) {
                     "active_processes": "Tor, nmap, Wireshark",
                     "bytes_sent": 556559519,
                     "risk_status": [
-                                        "ANOMALY_BOT",
-                                        "BRUTE_FORCE"
+                        "ANOMALY_BOT",
+                        "BRUTE_FORCE"
                     ]
-},
+                },
                 timestamp: new Date(1777772498281).toISOString()
             }
-        ]    };
+        ]
+    };
 }
 
 export async function POST(req: Request) {

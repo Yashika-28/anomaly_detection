@@ -195,89 +195,6 @@ const LiveMap = ({ lat, lng, city, country, verdict, isDarkMode }: LiveMapProps)
 
 // --- MAIN APPLICATION ---
 
-const SAMPLE_SESSIONS: Session[] = [
-  {
-    id: "abnormality-001",
-    timestamp: "2026-02-26T19:45:00.000Z",
-    user: {
-      name: "System Administrator (Simulated)",
-      role: "Superuser / Root",
-      ip: "10.0.0.84",
-    },
-    status: "Locked",
-    verdict: "Critical",
-    geo: {
-      lat: 34.0522,
-      lng: -118.2437,
-      city: "Los Angeles",
-      country: "USA"
-    },
-    modules: {
-      context: {
-        os: "Kali Linux / Headless",
-        res: "1920x1080",
-        devToolsOpen: true,
-        match: false
-      },
-      hci: {
-        velocity: "5200 px/s",
-        trajectory: "Inhuman / Instant",
-        pasteDetected: true,
-        human: false,
-        typingWpm: 0
-      },
-      network: {
-        ipType: "Data Center (AWS)",
-        proxy: "Shadowsocks VPN",
-        protocol: "SSH-Tunnel",
-        download: "2.4 GB",
-        upload: "1.8 GB",
-        risk: "High"
-      }
-    }
-  },
-  {
-    id: "normal-002",
-    timestamp: "2026-02-26T18:00:00.000Z",
-    user: {
-      name: "Marcus Aurelius",
-      role: "Cloud Architect",
-      ip: "192.168.1.15",
-    },
-    status: "Locked",
-    verdict: "Safe",
-    geo: {
-      lat: 48.8566,
-      lng: 2.3522,
-      city: "Paris",
-      country: "France"
-    },
-    modules: {
-      context: {
-        os: "macOS Sonoma",
-        res: "2880x1800",
-        devToolsOpen: false,
-        match: true
-      },
-      hci: {
-        velocity: "840 px/s",
-        trajectory: "Natural Human",
-        pasteDetected: false,
-        human: true,
-        typingWpm: 68
-      },
-      network: {
-        ipType: "Residential (Orange SA)",
-        proxy: "None",
-        protocol: "HTTPS/3",
-        download: "128 MB",
-        upload: "14 MB",
-        risk: "Low"
-      }
-    }
-  }
-];
-
 const formatBytes = (bytes: number) => {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -286,8 +203,89 @@ const formatBytes = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
+const PROFILES = [
+  { username: "priyanshi", os: "Windows 11", ip: "192.168.1.15", lat: 28.6139, lon: 77.2090, apps: "Chrome, Outlook", attempts: 1, delay: 0.12, mouse: 1200, tabs: 1, bytes: 1500000, status: "SAFE (Authenticated)", verdict: "Safe", score: 0.12 },
+  { username: "archit", os: "Kali Linux", ip: "185.15.56.22", lat: 55.7558, lon: 37.6173, apps: "Tor, nmap, Wireshark", attempts: 1, delay: 0.02, mouse: 6000, tabs: 0, bytes: 85000000, status: "CRITICAL ANOMALY (Blocked)", verdict: "Critical", score: 0.95 },
+  { username: "anamika", os: "macOS Sonoma", ip: "192.168.1.42", lat: 12.9716, lon: 77.5946, apps: "Slack, Spotify", attempts: 1, delay: 0.15, mouse: 1500, tabs: 12, bytes: 5000000, status: "WARNING (Distracted User)", verdict: "Warning", score: 0.55 },
+  { username: "alice_wong", os: "Windows 11", ip: "192.168.1.88", lat: 37.7749, lon: -122.4194, apps: "VS Code, Terminal", attempts: 6, delay: 0.11, mouse: 1100, tabs: 2, bytes: 2000000, status: "WARNING (MFA Triggered)", verdict: "Warning", score: 0.65 },
+  { username: "akshi", os: "Ubuntu 22.04", ip: "192.168.1.95", lat: 28.5355, lon: 77.3910, apps: "Chrome, Excel", attempts: 1, delay: 0.18, mouse: 900, tabs: 1, bytes: 1200000, status: "SAFE (Authenticated)", verdict: "Safe", score: 0.10 },
+  { username: "priyanshi", os: "macOS Sonoma", ip: "192.168.1.110", lat: 19.0760, lon: 72.8777, apps: "Chrome, Slack", attempts: 1, delay: 0.14, mouse: 1350, tabs: 3, bytes: 2500000, status: "SAFE (Authenticated)", verdict: "Safe", score: 0.18 },
+  { username: "unknown_hacker", os: "Parrot OS", ip: "103.45.67.89", lat: 39.9042, lon: 116.4074, apps: "Metasploit, Netcat", attempts: 12, delay: 0.01, mouse: 8000, tabs: 0, bytes: 150000000, status: "CRITICAL ANOMALY (Blocked)", verdict: "Critical", score: 0.99 },
+  { username: "archit", os: "Windows 11", ip: "192.168.1.16", lat: 28.6139, lon: 77.2090, apps: "Chrome, YouTube", attempts: 1, delay: 0.16, mouse: 1800, tabs: 15, bytes: 12000000, status: "WARNING (Distracted User)", verdict: "Warning", score: 0.45 },
+  { username: "alice_wong", os: "macOS Sonoma", ip: "192.168.1.88", lat: 37.7749, lon: -122.4194, apps: "Safari, Slack", attempts: 1, delay: 0.13, mouse: 1150, tabs: 2, bytes: 1800000, status: "SAFE (Authenticated)", verdict: "Safe", score: 0.15 },
+  { username: "anamika", os: "Windows 11", ip: "185.20.10.5", lat: 51.5072, lon: -0.1276, apps: "Hydra, Burp", attempts: 8, delay: 0.05, mouse: 3500, tabs: 0, bytes: 45000000, status: "WARNING (MFA Triggered)", verdict: "Warning", score: 0.85 }
+];
+
+const OFFSETS_MINUTES = [
+  // Last 1 Hour
+  2, 12, 25, 40, 55,
+  // Last 24 Hours
+  90, 180, 300, 450, 600, 750, 900, 1050, 1200, 1350,
+  // Last 7 Days
+  1500, 2000, 2800, 3500, 4300, 5000, 5700, 6500, 7200, 7900, 8600, 9000, 9500, 10000, 10050,
+  // Last 30 Days
+  11000, 13000, 15000, 18000, 21000, 24000, 27000, 30000, 33000, 36000, 38000, 40000, 41000, 42000, 43000
+];
+
+const generateSampleSessions = (): Session[] => {
+  // Use a fixed base time if we want deterministic generation, but Date.now() ensures it spans *current* time ranges
+  const now = Date.now();
+  return OFFSETS_MINUTES.map((offset, index) => {
+    const profile = PROFILES[index % PROFILES.length];
+    const sessionTime = new Date(now - offset * 60 * 1000).toISOString();
+
+    return {
+      id: `generated-${index}`,
+      timestamp: sessionTime,
+      user: {
+        name: profile.username,
+        role: profile.verdict === "Critical" ? "Threat Actor" : profile.verdict === "Warning" ? "Distracted User" : "Employee",
+        ip: profile.ip,
+        attempts: profile.attempts
+      },
+      status: "Locked",
+      verdict: profile.verdict as 'Safe' | 'Warning' | 'Critical',
+      geo: {
+        lat: profile.lat,
+        lng: profile.lon,
+        city: "Detected",
+        country: "Region"
+      },
+      modules: {
+        context: {
+          os: profile.os,
+          res: "1920x1080",
+          devToolsOpen: profile.tabs > 10,
+          match: profile.verdict === "Safe"
+        },
+        hci: {
+          velocity: `${profile.mouse} px/s`,
+          trajectory: profile.mouse > 2000 ? "Erratic / Inhuman" : "Natural Human",
+          pasteDetected: profile.delay < 0.05,
+          human: profile.delay >= 0.05 && profile.mouse <= 3000,
+          typingWpm: profile.delay > 0 ? Math.round((60 / profile.delay) / 5) : 0
+        },
+        network: {
+          ipType: profile.ip.startsWith("192.") || profile.ip.startsWith("10.") ? "Private / Internal" : "Residential ISP",
+          proxy: profile.apps.includes("Tor") || profile.apps.includes("Burp") ? "Proxy / VPN" : "None",
+          protocol: "HTTPS",
+          download: formatBytes(profile.bytes),
+          upload: formatBytes(profile.bytes / 5),
+          risk: profile.verdict === "Critical" ? "High" : profile.verdict === "Warning" ? "Medium" : "Low"
+        }
+      }
+    };
+  });
+};
+
+const SAMPLE_SESSIONS: Session[] = [];
+
 export default function App() {
-  const [sessions, setSessions] = useState<Session[]>(SAMPLE_SESSIONS);
+  const [sessions, setSessions] = useState<Session[]>([]);
+
+  useEffect(() => {
+    setSessions(generateSampleSessions());
+  }, []);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterRisk, setFilterRisk] = useState('All');
