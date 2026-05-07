@@ -723,7 +723,7 @@ export default function PrototypePage() {
                   <form onSubmit={handleLoginSubmit} className="space-y-4">
                     <div>
                       <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1.5 tracking-wider">Username</label>
-                      <input suppressHydrationWarning type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" placeholder="e.g. priyanshi" required />
+                      <input suppressHydrationWarning type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" placeholder="e.g. Admin" required />
                     </div>
                     <div>
                       <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1.5 tracking-wider">Password</label>
