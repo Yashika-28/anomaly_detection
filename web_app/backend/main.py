@@ -38,8 +38,9 @@ app = FastAPI()
 # --- NEW: OTP Storage & Email Config ---
 active_otps = {}
 
-SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "neurometric.alert@gmail.com")
-SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD", "1234")
+# Replace these sample credentials with your actual Gmail address and App Password
+SENDER_EMAIL = "neurometric.alert@gmail.com"
+SENDER_PASSWORD = "ufguairlltbtvpvw"
 
 def send_otp_email(target_email: str, otp: str, username: str = "User"):
     msg = EmailMessage()
