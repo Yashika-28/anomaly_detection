@@ -353,8 +353,8 @@ export default function App() {
               os: data.os || "Unknown",
               res: data.resolution || "Unknown",
               devToolsOpen: data.tab_switch_count > 2,
-              // Fingerprint match: true only if this is a known returning device (live injections are always unverified)
-              match: data.type !== "LIVE_UPDATE" && !data.risk_status?.includes("ANOMALY")
+              // Fingerprint match: false if anomaly detected
+              match: !data.risk_status?.includes("ANOMALY")
             },
             hci: {
               velocity: `${data.mouse_velocity || 0} px/s`,

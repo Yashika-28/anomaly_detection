@@ -68,6 +68,24 @@ export default function PrototypePage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [bruteForceReported, setBruteForceReported] = useState(false);
+  const [banUntil, setBanUntil] = useState<number | null>(null);
+  const [banTimeRemaining, setBanTimeRemaining] = useState<number>(0);
+
+  useEffect(() => {
+    if (!banUntil) return;
+    const interval = setInterval(() => {
+      const remaining = Math.ceil((banUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setBanUntil(null);
+        setBanTimeRemaining(0);
+        setLoginAttempts(0); // Reset attempts after waiting out the ban
+        clearInterval(interval);
+      } else {
+        setBanTimeRemaining(remaining);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [banUntil]);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -221,21 +239,8 @@ export default function PrototypePage() {
   };
 
 
-  // Live tracking
+  // Continuous tracking of DOM events, regardless of auth state
   useEffect(() => {
-    if (username.length > 0 && !isMonitoring && !isSubmittedRef.current && isLoggedIn) {
-      setIsMonitoring(true);
-      setStatus("🟢 Active Session: Monitoring Telemetry...");
-      try {
-        const ws = new WebSocket("ws://localhost:8000/ws/tracking");
-        ws.onopen = () => setWsConnected(true);
-        ws.onclose = () => setWsConnected(false);
-        ws.onerror = () => setWsConnected(false);
-        wsRef.current = ws;
-      } catch { setWsConnected(false); }
-    }
-    if (!isMonitoring) return;
-
     const handleVis = () => { if (document.hidden) trackData.current.tabSwitches++; };
     document.addEventListener("visibilitychange", handleVis);
     const handleKey = () => {
@@ -261,6 +266,28 @@ export default function PrototypePage() {
       }
     };
     document.addEventListener("mousemove", handleMouse);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVis);
+      document.removeEventListener("keydown", handleKey);
+      document.removeEventListener("mousemove", handleMouse);
+    };
+  }, []);
+
+  // Live tracking
+  useEffect(() => {
+    if (username.length > 0 && !isMonitoring && !isSubmittedRef.current && isLoggedIn) {
+      setIsMonitoring(true);
+      setStatus("🟢 Active Session: Monitoring Telemetry...");
+      try {
+        const ws = new WebSocket("ws://localhost:8000/ws/tracking");
+        ws.onopen = () => setWsConnected(true);
+        ws.onclose = () => setWsConnected(false);
+        ws.onerror = () => setWsConnected(false);
+        wsRef.current = ws;
+      } catch { setWsConnected(false); }
+    }
+    if (!isMonitoring) return;
 
     const getInjectedValues = () => {
       if (!isInjectionEnabled) {
@@ -316,13 +343,12 @@ export default function PrototypePage() {
       }
     }, 1000);
 
-    return () => { document.removeEventListener("visibilitychange", handleVis); document.removeEventListener("keydown", handleKey); document.removeEventListener("mousemove", handleMouse); clearInterval(streamInterval); };
+    return () => { clearInterval(streamInterval); };
   }, [username, isMonitoring, isLoggedIn, activeProcesses, isBotMode, spoofIp, selectedLocationIdx, customLat, customLon, mouseVelocityOverride, keystrokeDelayOverride, selectedUser, simUploadMb, simDownloadMb, loginAttemptOverride, isInjectionEnabled]);
 
-  // Login with password validation
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password || locationError) return;
+    if (!username || !password || locationError || banUntil) return;
     setIsLoggingIn(true);
     setAuthMessage(null);
 
@@ -380,7 +406,12 @@ export default function PrototypePage() {
         setStatus("🟢 Secure Session Active. Monitor Workspace...");
         setAuthMessage(null);
       } else {
-        setAuthMessage({ type: "error", text: data.error || "Login failed." });
+        if (newAttemptCount >= 7) {
+          setBanUntil(Date.now() + 5 * 60 * 1000);
+          setAuthMessage({ type: "error", text: "Too many failed attempts. Try again in 5 minutes." });
+        } else {
+          setAuthMessage({ type: "error", text: data.error || "Login failed." });
+        }
 
         // Brute force security alert email: triggered at 3+ wrong attempts
         if (newAttemptCount >= 3) {
@@ -735,8 +766,10 @@ export default function PrototypePage() {
                         <ShieldAlert className="w-4 h-4 shrink-0" /> Location permission required.
                       </div>
                     )}
-                    <button suppressHydrationWarning type="submit" disabled={!username || !password || locationError || isLoggingIn} className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
-                      {isLoggingIn ? (
+                    <button suppressHydrationWarning type="submit" disabled={!username || !password || locationError || isLoggingIn || banUntil !== null} className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+                      {banUntil ? (
+                        `Try again in ${Math.floor(banTimeRemaining / 60)}:${(banTimeRemaining % 60).toString().padStart(2, '0')}`
+                      ) : isLoggingIn ? (
                         <>
                           <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
                           Verifying...
