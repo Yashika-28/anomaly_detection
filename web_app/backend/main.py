@@ -40,7 +40,7 @@ active_otps = {}
 
 # Replace these sample credentials with your actual Gmail address and App Password
 SENDER_EMAIL = "neurometric.alert@gmail.com"
-SENDER_PASSWORD = "ufguairllw"
+SENDER_PASSWORD = "${EMAIL_PASSWORD}"
 
 def send_otp_email(target_email: str, otp: str, username: str = "User"):
     msg = EmailMessage()
