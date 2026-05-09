@@ -794,7 +794,7 @@ export default function App() {
               </span>
               <div className="text-sm font-mono text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                {mounted ? `${currentTime.toISOString().replace('T', ' ').substr(0, 19)} UTC` : 'Loading...'}
+                {mounted ? `${new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(currentTime).replace(', ', ' ')} IST` : 'Loading...'}
               </div>
             </div>
           </div>
@@ -1010,10 +1010,10 @@ export default function App() {
                   >
                     <td className="p-4 pl-6">
                       <div className="font-mono text-sm text-slate-700 dark:text-slate-300">
-                        {session.timestamp.split('T')[1].substring(0, 8)}
+                        {new Date(session.timestamp).toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata' })}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">
-                        {session.timestamp.split('T')[0]}
+                        {new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(session.timestamp))}
                       </div>
                     </td>
                     <td className="p-4">
