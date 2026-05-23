@@ -26,7 +26,7 @@ if (!globalDb.mockDb) {
         users: {
             "priyanshi": {
                 password: "password123",
-                email: "priyanshi22csu393@ncuinda.edu",
+                email: "priyanshi22csu393@ncuindia.edu",
                 attempts: 0,
                 trustedLocations: [
                     { lat: 48.8566, lon: 2.3522, label: "Paris (Home)" },
