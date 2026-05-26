@@ -127,7 +127,12 @@ export default function PrototypePage() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMounted(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Simulator
   const [activeProcesses, setActiveProcesses] = useState("Outlook, Excel, Chrome (Google)");
@@ -180,26 +185,36 @@ export default function PrototypePage() {
     tabSwitches: 0, mouseVelocity: 0, mouseVelocitySamples: [] as number[], totalBytes: 0, downloadedBytes: 0,
     keystrokeDelays: [] as number[], keystrokeCount: 0
   });
-  const lastMousePos = useRef({ x: 0, y: 0, time: Date.now() });
+  const lastMousePos = useRef({ x: 0, y: 0, time: 0 });
   const lastKeyTime = useRef<number | null>(null);
   const typingStartTime = useRef<number | null>(null); // When the user started typing this session
   const wsRef = useRef<WebSocket | null>(null);
   const isSubmittedRef = useRef(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [realIp, setRealIp] = useState("Fetching...");
 
   // Init hardware & network
   useEffect(() => {
     trackData.current.os = navigator.platform || navigator.userAgent;
     fetch("https://api.ipify.org?format=json")
       .then(r => r.json())
-      .then(data => { trackData.current.ip = data.ip; })
-      .catch(() => { trackData.current.ip = "Unavailable"; });
+      .then(data => {
+        trackData.current.ip = data.ip;
+        setRealIp(data.ip);
+      })
+      .catch(() => {
+        trackData.current.ip = "Unavailable";
+        setRealIp("Unavailable");
+      });
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => { trackData.current.lat = pos.coords.latitude; trackData.current.lon = pos.coords.longitude; setLocationError(false); },
         () => { setLocationError(true); }
       );
-    } else { setLocationError(true); }
+    } else {
+      setTimeout(() => setLocationError(true), 0);
+    }
   }, []);
 
   // Fetch users for injection
@@ -213,7 +228,11 @@ export default function PrototypePage() {
       setUserList(res.data.users);
     }
   }, []);
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => {
+    setTimeout(() => {
+      fetchUsers();
+    }, 0);
+  }, [fetchUsers]);
 
   // Compute live verdict based on current injection settings vs user-configured thresholds
   const computeVerdictPreview = () => {
@@ -318,15 +337,17 @@ export default function PrototypePage() {
   // Live tracking
   useEffect(() => {
     if (username.length > 0 && !isMonitoring && !isSubmittedRef.current && isLoggedIn) {
-      setIsMonitoring(true);
-      setStatus("🟢 Active Session: Monitoring Telemetry...");
+      setTimeout(() => {
+        setIsMonitoring(true);
+        setStatus("🟢 Active Session: Monitoring Telemetry...");
+      }, 0);
       try {
         const ws = new WebSocket("ws://localhost:8000/ws/tracking");
         ws.onopen = () => setWsConnected(true);
         ws.onclose = () => setWsConnected(false);
         ws.onerror = () => setWsConnected(false);
         wsRef.current = ws;
-      } catch { setWsConnected(false); }
+      } catch { setTimeout(() => setWsConnected(false), 0); }
     }
     if (!isMonitoring) return;
 
@@ -721,6 +742,7 @@ export default function PrototypePage() {
     // Send final evaluation before logging out
     if (isMonitoring && !isSubmittedRef.current) {
       isSubmittedRef.current = true;
+      setIsSubmitted(true);
       setIsMonitoring(false);
 
       const delays = trackData.current.keystrokeDelays;
@@ -777,6 +799,7 @@ export default function PrototypePage() {
 
     // Reset everything
     isSubmittedRef.current = false;
+    setIsSubmitted(false);
     setIsMonitoring(false);
     setWsConnected(false);
     setUsername(""); setPassword(""); setComposeText("");
@@ -1008,7 +1031,7 @@ export default function PrototypePage() {
                     </button>
                     
                     <div className="pt-2 text-center text-sm text-slate-500">
-                      Don't have an account?{" "}
+                      Don&apos;t have an account?{" "}
                       <button type="button" onClick={() => { setAuthStep("signup"); setAuthMessage(null); }} className="text-blue-500 hover:text-blue-400 font-bold hover:underline transition-colors">Sign Up</button>
                     </div>
                   </form>
@@ -1083,7 +1106,7 @@ export default function PrototypePage() {
                   <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-800/50">
                     {/* Download with menu */}
                     <div className="relative">
-                      <button suppressHydrationWarning onClick={() => setShowDownloadMenu(!showDownloadMenu)} disabled={!isMonitoring || isSubmittedRef.current}
+                      <button suppressHydrationWarning onClick={() => setShowDownloadMenu(!showDownloadMenu)} disabled={!isMonitoring || isSubmitted}
                         className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 p-3 rounded-xl border border-slate-200 dark:border-slate-700/50 transition-all disabled:opacity-40 text-sm">
                         <Download className="w-4 h-4" /> Download <ChevronDown className="w-3 h-3" />
                       </button>
@@ -1109,7 +1132,7 @@ export default function PrototypePage() {
                     {/* Upload */}
                     <div>
                       <input suppressHydrationWarning ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
-                      <button suppressHydrationWarning onClick={() => fileInputRef.current?.click()} disabled={!isMonitoring || isSubmittedRef.current}
+                      <button suppressHydrationWarning onClick={() => fileInputRef.current?.click()} disabled={!isMonitoring || isSubmitted}
                         className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 p-3 rounded-xl border border-slate-200 dark:border-slate-700/50 transition-all disabled:opacity-40 text-sm">
                         <Upload className="w-4 h-4" /> Upload File
                       </button>
@@ -1193,7 +1216,7 @@ export default function PrototypePage() {
                       <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-amber-600 dark:text-amber-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Users className="w-4 h-4" /> Target User</label>
                         <div className="relative">
-                          <select suppressHydrationWarning value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-amber-500 outline-none appearance-none cursor-pointer transition-colors text-sm" disabled={isSubmittedRef.current || isLoggedIn}>
+                          <select suppressHydrationWarning value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-amber-500 outline-none appearance-none cursor-pointer transition-colors text-sm" disabled={isSubmitted || isLoggedIn}>
                             <option value="">Use logged-in user ({username || "none"})</option>
                             {userList.map(u => (<option key={u.username} value={u.username}>{u.username} — {u.attempts} attempts — {u.lastIp}</option>))}
                           </select>
@@ -1205,7 +1228,7 @@ export default function PrototypePage() {
                       {/* IP Spoofing */}
                       <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-cyan-600 dark:text-cyan-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Globe className="w-4 h-4" /> IP Spoofing</label>
-                        <input suppressHydrationWarning type="text" value={spoofIp} onChange={(e) => setSpoofIp(e.target.value)} placeholder={`Real: ${trackData.current.ip}`} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-cyan-500 outline-none font-mono transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 text-sm" disabled={isSubmittedRef.current || isLoggedIn} />
+                        <input suppressHydrationWarning type="text" value={spoofIp} onChange={(e) => setSpoofIp(e.target.value)} placeholder={`Real: ${realIp}`} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-cyan-500 outline-none font-mono transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 text-sm" disabled={isSubmitted || isLoggedIn} />
                         <p className="text-xs text-slate-500 mt-1.5">Leave empty to use real IP</p>
                       </div>
 
@@ -1213,7 +1236,7 @@ export default function PrototypePage() {
                       <div className="lg:col-span-2 bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-violet-600 dark:text-violet-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><MapPin className="w-4 h-4" /> Location Spoofing</label>
                         <div className="relative">
-                          <select suppressHydrationWarning value={selectedLocationIdx} onChange={(e) => setSelectedLocationIdx(parseInt(e.target.value))} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-violet-500 outline-none appearance-none cursor-pointer transition-colors text-sm" disabled={isSubmittedRef.current || isLoggedIn}>
+                          <select suppressHydrationWarning value={selectedLocationIdx} onChange={(e) => setSelectedLocationIdx(parseInt(e.target.value))} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-violet-500 outline-none appearance-none cursor-pointer transition-colors text-sm" disabled={isSubmitted || isLoggedIn}>
                             <option value={-1}>Use real location</option>
                             {PRESET_LOCATIONS.map((loc, i) => (<option key={i} value={i}>{loc.label} ({loc.lat.toFixed(2)}°, {loc.lon.toFixed(2)}°)</option>))}
                           </select>
@@ -1246,7 +1269,7 @@ export default function PrototypePage() {
                       <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-pink-600 dark:text-pink-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><MousePointer2 className="w-4 h-4" /> Mouse Velocity</label>
                         <div className="flex items-center gap-3">
-                          <input suppressHydrationWarning type="range" min="100" max="10000" step="100" value={isBotMode ? 8500 : mouseVelocityOverride} onChange={(e) => setMouseVelocityOverride(parseInt(e.target.value))} className="flex-1 accent-pink-500" disabled={isSubmittedRef.current || isBotMode} />
+                          <input suppressHydrationWarning type="range" min="100" max="10000" step="100" value={isBotMode ? 8500 : mouseVelocityOverride} onChange={(e) => setMouseVelocityOverride(parseInt(e.target.value))} className="flex-1 accent-pink-500" disabled={isSubmitted || isBotMode} />
                           <span className={`text-lg font-bold font-mono min-w-[5ch] text-right ${(isBotMode ? 8500 : mouseVelocityOverride) > 3000 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{isBotMode ? 8500 : mouseVelocityOverride}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-1.5">px/s • Human: 200-1500 • Bot: 3000+</p>
@@ -1256,7 +1279,7 @@ export default function PrototypePage() {
                       <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-teal-600 dark:text-teal-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Gauge className="w-4 h-4" /> Keystroke Delay</label>
                         <div className="flex items-center gap-3">
-                          <input suppressHydrationWarning type="range" min="0.001" max="0.5" step="0.001" value={isBotMode ? 0.005 : keystrokeDelayOverride} onChange={(e) => setKeystrokeDelayOverride(parseFloat(e.target.value))} className="flex-1 accent-teal-500" disabled={isSubmittedRef.current || isBotMode} />
+                          <input suppressHydrationWarning type="range" min="0.001" max="0.5" step="0.001" value={isBotMode ? 0.005 : keystrokeDelayOverride} onChange={(e) => setKeystrokeDelayOverride(parseFloat(e.target.value))} className="flex-1 accent-teal-500" disabled={isSubmitted || isBotMode} />
                           <span className={`text-lg font-bold font-mono min-w-[5ch] text-right ${(isBotMode ? 0.005 : keystrokeDelayOverride) < 0.05 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{(isBotMode ? 0.005 : keystrokeDelayOverride).toFixed(3)}s</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-1.5">Human: 0.08-0.3s • Bot: &lt;0.05s</p>
@@ -1266,7 +1289,7 @@ export default function PrototypePage() {
                       <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-orange-600 dark:text-orange-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Crosshair className="w-4 h-4" /> Login Attempts</label>
                         <div className="flex items-center gap-3">
-                          <input suppressHydrationWarning type="range" min="1" max="20" value={loginAttemptOverride} onChange={(e) => setLoginAttemptOverride(parseInt(e.target.value))} className="flex-1 accent-orange-500" disabled={isSubmittedRef.current || isLoggedIn} />
+                          <input suppressHydrationWarning type="range" min="1" max="20" value={loginAttemptOverride} onChange={(e) => setLoginAttemptOverride(parseInt(e.target.value))} className="flex-1 accent-orange-500" disabled={isSubmitted || isLoggedIn} />
                           <span className={`text-2xl font-bold font-mono min-w-[3ch] text-right ${loginAttemptOverride > 5 ? 'text-rose-600 dark:text-rose-400' : loginAttemptOverride > 2 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{loginAttemptOverride}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-1.5">{loginAttemptOverride > 5 ? '⚠ Brute-force pattern' : loginAttemptOverride > 2 ? '⚠ Suspicious' : '✓ Normal range'}</p>
@@ -1291,7 +1314,7 @@ export default function PrototypePage() {
                       <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/50">
                         <label className="block text-xs uppercase text-amber-600 dark:text-amber-500 font-bold mb-3 flex items-center gap-2 tracking-wider"><Network className="w-4 h-4" /> Endpoint Processes</label>
                         <div className="relative">
-                          <select suppressHydrationWarning value={activeProcesses} onChange={(e) => setActiveProcesses(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-amber-500 outline-none appearance-none cursor-pointer transition-colors text-sm" disabled={isSubmittedRef.current}>
+                          <select suppressHydrationWarning value={activeProcesses} onChange={(e) => setActiveProcesses(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-amber-500 outline-none appearance-none cursor-pointer transition-colors text-sm" disabled={isSubmitted}>
                             <option value="Outlook, Excel, Chrome (Google)">[Normal] Outlook, Excel, Chrome</option>
                             <option value="Chrome (YouTube, Spotify), Slack">[Warning] Distracted / High Bandwidth</option>
                             <option value="Tor Browser, Wireshark, Cmd.exe">[Critical] Tor Browser, Wireshark, Cmd</option>
@@ -1306,7 +1329,7 @@ export default function PrototypePage() {
                       <div className={`p-4 rounded-xl border transition-all ${isBotMode ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/50 shadow-[0_0_20px_rgba(225,29,72,0.05)]' : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800/50'}`}>
                         <div className="flex justify-between items-center mb-3">
                           <label className="text-xs uppercase font-bold flex items-center gap-2 text-rose-600 dark:text-rose-400 tracking-wider"><Zap className="w-4 h-4" /> Full Bot Override</label>
-                          <button suppressHydrationWarning type="button" onClick={() => setIsBotMode(!isBotMode)} disabled={isSubmittedRef.current} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${isBotMode ? 'bg-rose-600 shadow-lg shadow-rose-600/30' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                          <button suppressHydrationWarning type="button" onClick={() => setIsBotMode(!isBotMode)} disabled={isSubmitted} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${isBotMode ? 'bg-rose-600 shadow-lg shadow-rose-600/30' : 'bg-slate-300 dark:bg-slate-700'}`}>
                             <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${isBotMode ? 'translate-x-6' : 'translate-x-1'}`} />
                           </button>
                         </div>

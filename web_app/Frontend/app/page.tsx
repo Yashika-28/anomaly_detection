@@ -98,6 +98,58 @@ const CodeStreamBackground = () => {
 };
 
 // --- Custom Interactive Neural Network Background ---
+class Particle {
+  x: number;
+  y: number;
+  directionX: number;
+  directionY: number;
+  size: number;
+  color: string;
+
+  constructor(x: number, y: number, directionX: number, directionY: number, size: number, color: string) {
+    this.x = x;
+    this.y = y;
+    this.directionX = directionX;
+    this.directionY = directionY;
+    this.size = size;
+    this.color = color;
+  }
+  draw(ctx: CanvasRenderingContext2D) {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+    ctx.fillStyle = this.color;
+    ctx.fill();
+  }
+  update(
+    canvas: HTMLCanvasElement,
+    mouse: { x: null | number; y: null | number; radius: number }
+  ) {
+    if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
+    if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
+
+    if (mouse.x === null || mouse.y === null) {
+      this.x += this.directionX;
+      this.y += this.directionY;
+    } else {
+      const dx = mouse.x - this.x;
+      const dy = mouse.y - this.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < mouse.radius) {
+        const forceDirectionX = dx / distance;
+        const forceDirectionY = dy / distance;
+        const force = (mouse.radius - distance) / mouse.radius;
+        const directionX = forceDirectionX * force * 5;
+        const directionY = forceDirectionY * force * 5;
+        this.x -= directionX;
+        this.y -= directionY;
+      } else {
+        this.y += this.directionY;
+      }
+    }
+  }
+}
+
 const NeuralBackground = ({ theme }: { theme: string }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -108,7 +160,7 @@ const NeuralBackground = ({ theme }: { theme: string }) => {
     if (!ctx) return;
     let animationFrameId: number;
     let particles: Particle[] = [];
-    let mouse: { x: null | number; y: null | number; radius: number } = { x: null, y: null, radius: 150 };
+    const mouse: { x: null | number; y: null | number; radius: number } = { x: null, y: null, radius: 150 };
 
     const handleResize = () => {
       canvas.width = window.innerWidth;
@@ -130,71 +182,18 @@ const NeuralBackground = ({ theme }: { theme: string }) => {
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseout", handleMouseLeave);
 
-    class Particle {
-      x: number;
-      y: number;
-      directionX: number;
-      directionY: number;
-      size: number;
-      color: string;
-
-      constructor(x: number, y: number, directionX: number, directionY: number, size: number, color: string) {
-        this.x = x;
-        this.y = y;
-        this.directionX = directionX;
-        this.directionY = directionY;
-        this.size = size;
-        this.color = color;
-      }
-      draw() {
-        if (!ctx) return;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-      }
-      update() {
-        if (!canvas) return;
-        if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
-        if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
-
-        if (mouse.x === null || mouse.y === null) {
-          this.x += this.directionX;
-          this.y += this.directionY;
-        } else {
-          let dx = mouse.x - this.x;
-          let dy = mouse.y - this.y;
-          let distance = Math.sqrt(dx * dx + dy * dy);
-
-          if (mouse.x != null && distance < mouse.radius) {
-            const forceDirectionX = dx / distance;
-            const forceDirectionY = dy / distance;
-            const force = (mouse.radius - distance) / mouse.radius;
-            const directionX = forceDirectionX * force * 5;
-            const directionY = forceDirectionY * force * 5;
-            this.x -= directionX;
-            this.y -= directionY;
-          } else {
-            this.y += this.directionY;
-          }
-          this.draw();
-        }
-      }
-    }
-
     const init = () => {
       particles = [];
-      if (!canvas) return;
-      let numberOfParticles = (canvas.height * canvas.width) / 12000;
+      const numberOfParticles = (canvas.height * canvas.width) / 12000;
       const isDark = theme === "dark";
       const particleColor = isDark ? "rgba(96, 165, 250, 0.4)" : "rgba(59, 130, 246, 0.3)";
 
       for (let i = 0; i < numberOfParticles; i++) {
-        let size = (Math.random() * 2) + 1;
-        let x = (Math.random() * ((canvas.width - size * 2) - (size * 2)) + size * 2);
-        let y = (Math.random() * ((canvas.height - size * 2) - (size * 2)) + size * 2);
-        let directionX = (Math.random() * 1.5) - 0.75;
-        let directionY = (Math.random() * 1.5) - 0.75;
+        const size = (Math.random() * 2) + 1;
+        const x = (Math.random() * ((canvas.width - size * 2) - (size * 2)) + size * 2);
+        const y = (Math.random() * ((canvas.height - size * 2) - (size * 2)) + size * 2);
+        const directionX = (Math.random() * 1.5) - 0.75;
+        const directionY = (Math.random() * 1.5) - 0.75;
         particles.push(new Particle(x, y, directionX, directionY, size, particleColor));
       }
     };
@@ -202,10 +201,9 @@ const NeuralBackground = ({ theme }: { theme: string }) => {
     const connect = () => {
       const isDark = theme === "dark";
       let opacityValue = 1;
-      if (!canvas || !ctx) return;
       for (let a = 0; a < particles.length; a++) {
         for (let b = a; b < particles.length; b++) {
-          let distance = ((particles[a].x - particles[b].x) * (particles[a].x - particles[b].x))
+          const distance = ((particles[a].x - particles[b].x) * (particles[a].x - particles[b].x))
             + ((particles[a].y - particles[b].y) * (particles[a].y - particles[b].y));
           if (distance < (canvas.width / 10) * (canvas.height / 10)) {
             opacityValue = 1 - (distance / 15000);
@@ -224,10 +222,10 @@ const NeuralBackground = ({ theme }: { theme: string }) => {
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
-      if (!canvas || !ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
+        particles[i].update(canvas, mouse);
+        particles[i].draw(ctx);
       }
       connect();
     };
@@ -411,7 +409,12 @@ const teamData = [
 
 export default function App() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMounted(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const [activeSlide, setActiveSlide] = useState<number | null>(null); // Default to null so none are expanded
   const [hoveredSlide, setHoveredSlide] = useState<number | null>(null);
@@ -505,7 +508,7 @@ export default function App() {
 
             <FadeIn delay={0.3}>
               <p className="text-lg sm:text-xl text-slate-700 dark:text-neutral-300 text-center max-w-3xl mb-12 leading-relaxed bg-white/40 dark:bg-neutral-900/40 backdrop-blur-md p-6 rounded-2xl border border-white/30 dark:border-white/5 shadow-xl">
-                Welcome to <strong>Neurometric Shield</strong>. An enterprise-grade UEBA platform utilizing unsupervised learning. We don't just verify logins; we constantly monitor <em>how</em> you behave post-authentication.
+                Welcome to <strong>Neurometric Shield</strong>. An enterprise-grade UEBA platform utilizing unsupervised learning. We don&apos;t just verify logins; we constantly monitor <em>how</em> you behave post-authentication.
               </p>
             </FadeIn>
 
@@ -532,7 +535,7 @@ export default function App() {
               <div className="text-center mb-16">
                 <h2 className="text-3xl sm:text-5xl font-bold mb-4">Continuous <span className="text-blue-600 dark:text-blue-400">Risk Assessment.</span></h2>
                 <p className="text-slate-600 dark:text-neutral-400 max-w-2xl mx-auto">
-                  Authentication isn't a single event. We are watching everything. Our AI calculates continuous neurometric confidence post-login, adapting security policies dynamically.
+                  Authentication isn&apos;t a single event. We are watching everything. Our AI calculates continuous neurometric confidence post-login, adapting security policies dynamically.
                 </p>
               </div>
             </FadeIn>
@@ -569,7 +572,7 @@ export default function App() {
                   </div>
 
                   <p className="text-slate-600 dark:text-neutral-400 text-sm">
-                    Behavior perfectly matches the user's historical baseline. System access is seamlessly granted without interrupting workflow.
+                    Behavior perfectly matches the user&apos;s historical baseline. System access is seamlessly granted without interrupting workflow.
                   </p>
                 </div>
               </FadeIn>
@@ -664,7 +667,7 @@ export default function App() {
                 <div className="text-center lg:text-left h-full flex flex-col justify-start">
                   <h2 className="text-4xl sm:text-5xl lg:text-5xl xl:text-6xl font-extrabold mb-8 leading-none -mt-2">Powered by a Multi-Dimensional <br className="hidden xl:block" /><span className="text-purple-600 dark:text-purple-400">AI Ensemble.</span></h2>
                   <p className="text-slate-600 dark:text-neutral-300 text-lg sm:text-xl leading-relaxed">
-                    We deploy three specialized unsupervised ML models working in harmony. Because threats constantly evolve, we don't rely on static rules. Instead, our ensemble establishes a dynamic baseline of "normal" behavior and automatically flags previously unknown anomalies and deviations in real-time.
+                    We deploy three specialized unsupervised ML models working in harmony. Because threats constantly evolve, we don&apos;t rely on static rules. Instead, our ensemble establishes a dynamic baseline of &quot;normal&quot; behavior and automatically flags previously unknown anomalies and deviations in real-time.
                   </p>
                 </div>
               </FadeIn>
@@ -812,7 +815,7 @@ export default function App() {
                       <div className="flex flex-col w-full">
                         <h3 className="text-xl sm:text-2xl font-bold mb-2 text-slate-900 dark:text-white">Live Prototype</h3>
                         <p className="text-slate-600 dark:text-neutral-400 text-sm sm:text-base mb-4 leading-relaxed">
-                          Test the unsupervised learning models safely. Because logins from your current device will always register as "Normal", use this portal to simulate fake sign-ins. Select mock users, inject custom parameters (Time, Location, IP, OS), and watch the AI flag anomalies instantly.
+                          Test the unsupervised learning models safely. Because logins from your current device will always register as &quot;Normal&quot;, use this portal to simulate fake sign-ins. Select mock users, inject custom parameters (Time, Location, IP, OS), and watch the AI flag anomalies instantly.
                         </p>
                         <div className="flex justify-end w-full">
                           <Link href="/prototype" className="inline-flex items-center justify-center px-5 py-2.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg shadow-blue-500/30 w-full sm:w-auto">
