@@ -55,8 +55,32 @@ const formatFileSize = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const safeFetchJson = async (url: string, options: RequestInit) => {
+  try {
+    const res = await fetch(url, options);
+    if (!res.ok) {
+      let errText = `Server error (${res.status}).`;
+      try {
+        const errJson = await res.json();
+        if (errJson && errJson.error) errText = errJson.error;
+        else if (errJson && errJson.message) errText = errJson.message;
+      } catch {}
+      return { success: false, error: errText };
+    }
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const data = await res.json();
+      return { success: true, data };
+    } else {
+      return { success: false, error: "Invalid response format from server." };
+    }
+  } catch (err) {
+    return { success: false, error: "Unable to connect to the security service. Please ensure the backend server is running." };
+  }
+};
+
 export default function PrototypePage() {
-  const [authStep, setAuthStep] = useState<"login" | "otp">("login");
+  const [authStep, setAuthStep] = useState<"login" | "otp" | "signup" | "forgot_password">("login");
   const [otpValue, setOtpValue] = useState("");
   const [otpError, setOtpError] = useState("");
   const [username, setUsername] = useState("");
@@ -67,6 +91,20 @@ export default function PrototypePage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [loginAttempts, setLoginAttempts] = useState(0);
+
+  // Sign up States
+  const [signupUsername, setSignupUsername] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupLat, setSignupLat] = useState("");
+  const [signupLon, setSignupLon] = useState("");
+  const [signupLabel, setSignupLabel] = useState("Home");
+
+  // Forgot Password States
+  const [forgotUsername, setForgotUsername] = useState("");
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotStep, setForgotStep] = useState<"request" | "verify">("request");
   const [bruteForceReported, setBruteForceReported] = useState(false);
   const [banUntil, setBanUntil] = useState<number | null>(null);
   const [banTimeRemaining, setBanTimeRemaining] = useState<number>(0);
@@ -125,7 +163,7 @@ export default function PrototypePage() {
   const [threshBotMouseVel, setThreshBotMouseVel] = useState(3000);   // px/s above this = bot
   const [threshBotKeyDelay, setThreshBotKeyDelay] = useState(0.05);   // s below this = bot
   const [threshSuspAttempts, setThreshSuspAttempts] = useState(3);    // attempts >= this = suspicious
-  const [threshBruteAttempts, setThreshBruteAttempts] = useState(6);  // attempts >= this = brute force
+  const [threshBruteAttempts, setThreshBruteAttempts] = useState(4);  // attempts >= this = brute force
   const [threshHighDataMb, setThreshHighDataMb] = useState(50);       // MB upload >= this = high data
 
   // Custom data simulation (MB to override bytes_sent / bytes_received in stream)
@@ -166,11 +204,14 @@ export default function PrototypePage() {
 
   // Fetch users for injection
   const fetchUsers = useCallback(async () => {
-    try {
-      const res = await fetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "GET_USERS" }) });
-      const data = await res.json();
-      if (data.success && data.users) setUserList(data.users);
-    } catch { /* ignore */ }
+    const res = await safeFetchJson("/api/db", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "GET_USERS" })
+    });
+    if (res.success && res.data && res.data.success && res.data.users) {
+      setUserList(res.data.users);
+    }
   }, []);
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -355,126 +396,14 @@ export default function PrototypePage() {
     const newAttemptCount = loginAttempts + 1;
     setLoginAttempts(newAttemptCount);
 
-    try {
-      const res = await fetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "VERIFY_LOGIN", payload: { username, password } }) });
-      const data = await res.json();
+    const res = await safeFetchJson("/api/db", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "VERIFY_LOGIN", payload: { username, password } })
+    });
 
-      if (data.success) {
-        // Collect telemetry and eval after processing success
-        const delays = trackData.current.keystrokeDelays;
-        let avgKey = delays.length ? delays.reduce((a, b) => a + b) / delays.length : 0;
-        let currentMouseVel = trackData.current.mouseVelocity;
-        const loc = selectedLocationIdx >= 0 ? PRESET_LOCATIONS[selectedLocationIdx] : null;
-        const isCustomLoc = loc?.label === "Custom Location";
-        if (isBotMode) { avgKey = 0.005; currentMouseVel = 8500; }
-        else if (spoofIp || selectedLocationIdx >= 0) { avgKey = keystrokeDelayOverride; currentMouseVel = mouseVelocityOverride; }
-
-        const evaluationPayload = {
-          // Always evaluate and record the LOGGED-IN user, not the injection target
-          username,
-          ip_address: spoofIp || trackData.current.ip,
-          lat: selectedLocationIdx < 0 ? trackData.current.lat : (isCustomLoc ? parseFloat(customLat) || 0 : loc!.lat),
-          lon: selectedLocationIdx < 0 ? trackData.current.lon : (isCustomLoc ? parseFloat(customLon) || 0 : loc!.lon),
-          os: trackData.current.os,
-          resolution: `${window.innerWidth}x${window.innerHeight}`,
-          avg_keystroke_delay: avgKey,
-          mouse_velocity: currentMouseVel,
-          tab_switch_count: trackData.current.tabSwitches,
-          active_processes: activeProcesses,
-          bytes_sent: trackData.current.totalBytes,
-          login_attempts_override: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
-          attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
-          email: userList.find(u => u.username === username)?.email || "nischalsharma2037@gmail.com"
-        };
-
-        try {
-          const evalRes = await fetch("http://localhost:8000/api/evaluate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(evaluationPayload)
-          });
-          const evalData = await evalRes.json();
-
-          if (evalData.status === "mfa_required") {
-            setAuthStep("otp");
-            setIsLoggingIn(false);
-            return;
-          }
-        } catch { /* proceed if network fails */ }
-
-        setIsLoggedIn(true);
-        setStatus("🟢 Secure Session Active. Monitor Workspace...");
-        setAuthMessage(null);
-      } else {
-        if (newAttemptCount >= 7) {
-          setBanUntil(Date.now() + 5 * 60 * 1000);
-          setAuthMessage({ type: "error", text: "Too many failed attempts. Try again in 5 minutes." });
-        } else {
-          setAuthMessage({ type: "error", text: data.error || "Login failed." });
-        }
-
-        // Brute force security alert email: triggered at 3+ wrong attempts
-        if (newAttemptCount >= 3) {
-          try {
-            const targetEmail = userList.find(u => u.username === username)?.email || "nischalsharma2037@gmail.com";
-            await fetch("http://localhost:8000/api/alert-brute-force", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: targetEmail, username: username, attempts: newAttemptCount })
-            });
-          } catch { /* ok */ }
-        }
-
-        // Brute force DB record: triggered at 3 wrong attempts
-        if (newAttemptCount >= 3 && !bruteForceReported) {
-          setBruteForceReported(true);
-          const telemetry = {
-            ip_address: spoofIp || trackData.current.ip,
-            lat: trackData.current.lat,
-            lon: trackData.current.lon,
-            os: trackData.current.os,
-            resolution: `${window.innerWidth}x${window.innerHeight}`,
-            avg_keystroke_delay: 0,
-            mouse_velocity: 0,
-            tab_switch_count: trackData.current.tabSwitches,
-            active_processes: "Login Screen",
-            bytes_sent: 0,
-            risk_status: ["ANOMALY_BRUTE_FORCE"]
-          };
-          try {
-            await fetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "RECORD_FAILED_ATTEMPTS", payload: { username, attempts: newAttemptCount, telemetry } }) });
-          } catch { /* ok */ }
-        } else if (newAttemptCount >= 3 && bruteForceReported) {
-          const telemetry = {
-            ip_address: spoofIp || trackData.current.ip,
-            lat: trackData.current.lat,
-            lon: trackData.current.lon,
-            os: trackData.current.os,
-            resolution: `${window.innerWidth}x${window.innerHeight}`,
-            avg_keystroke_delay: 0,
-            mouse_velocity: 0,
-            tab_switch_count: trackData.current.tabSwitches,
-            active_processes: "Login Screen",
-            bytes_sent: 0,
-            risk_status: ["ANOMALY_BRUTE_FORCE"]
-          };
-          try {
-            await fetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "RECORD_FAILED_ATTEMPTS", payload: { username, attempts: newAttemptCount, telemetry } }) });
-          } catch { /* ok */ }
-        }
-      }
-    } catch {
-      setAuthMessage({ type: "error", text: "Server error. Could not verify credentials." });
-    }
-    setIsLoggingIn(false);
-  };
-
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpValue) return;
-    setIsLoggingIn(true);
-    setOtpError("");
-    try {
+    if (res.success && res.data && res.data.success) {
+      // Collect telemetry and eval after processing success
       const delays = trackData.current.keystrokeDelays;
       let avgKey = delays.length ? delays.reduce((a, b) => a + b) / delays.length : 0;
       let currentMouseVel = trackData.current.mouseVelocity;
@@ -483,7 +412,8 @@ export default function PrototypePage() {
       if (isBotMode) { avgKey = 0.005; currentMouseVel = 8500; }
       else if (spoofIp || selectedLocationIdx >= 0) { avgKey = keystrokeDelayOverride; currentMouseVel = mouseVelocityOverride; }
 
-      const tel = {
+      const evaluationPayload = {
+        username,
         ip_address: spoofIp || trackData.current.ip,
         lat: selectedLocationIdx < 0 ? trackData.current.lat : (isCustomLoc ? parseFloat(customLat) || 0 : loc!.lat),
         lon: selectedLocationIdx < 0 ? trackData.current.lon : (isCustomLoc ? parseFloat(customLon) || 0 : loc!.lon),
@@ -494,26 +424,231 @@ export default function PrototypePage() {
         tab_switch_count: trackData.current.tabSwitches,
         active_processes: activeProcesses,
         bytes_sent: trackData.current.totalBytes,
-        protocol: "HTTPS",
-        attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts
+        login_attempts_override: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
+        attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
+        email: userList.find(u => u.username === username)?.email || "nischalsharma2037@gmail.com"
       };
 
-      const res = await fetch("http://localhost:8000/api/verify-otp", {
+      const evalRes = await safeFetchJson("http://localhost:8000/api/evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, otp: otpValue, ...tel })
+        body: JSON.stringify(evaluationPayload)
       });
-      const data = await res.json();
-      if (data.status === "success") {
-        setAuthStep("login");
-        setIsLoggedIn(true);
-        setStatus("🟢 Secure Session Active. Monitor Workspace...");
-        setAuthMessage(null);
-      } else {
-        setOtpError(data.message || "Invalid OTP");
+
+      if (evalRes.success && evalRes.data) {
+        const evalData = evalRes.data;
+        if (evalData.status === "mfa_required") {
+          setAuthStep("otp");
+          setIsLoggingIn(false);
+          return;
+        }
       }
-    } catch {
-      setOtpError("Server error verifying OTP");
+
+      setIsLoggedIn(true);
+      setStatus("🟢 Secure Session Active. Monitor Workspace...");
+      setAuthMessage(null);
+    } else {
+      const errorMsg = (!res.success && res.error) ? res.error : (res.data && res.data.error) ? res.data.error : "Login failed.";
+      
+      if (newAttemptCount >= 7) {
+        setBanUntil(Date.now() + 5 * 60 * 1000);
+        setAuthMessage({ type: "error", text: "Too many failed attempts. Try again in 5 minutes." });
+      } else {
+        setAuthMessage({ type: "error", text: errorMsg });
+      }
+
+      // Brute force security alert email: triggered at 3+ wrong attempts
+      if (newAttemptCount >= 3) {
+        const targetEmail = userList.find(u => u.username === username)?.email || "nischalsharma2037@gmail.com";
+        await safeFetchJson("http://localhost:8000/api/alert-brute-force", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: targetEmail, username: username, attempts: newAttemptCount })
+        });
+      }
+
+      // Brute force DB record: triggered at 3 wrong attempts
+      if (newAttemptCount >= 3 && !bruteForceReported) {
+        setBruteForceReported(true);
+        const telemetry = {
+          ip_address: spoofIp || trackData.current.ip,
+          lat: trackData.current.lat,
+          lon: trackData.current.lon,
+          os: trackData.current.os,
+          resolution: `${window.innerWidth}x${window.innerHeight}`,
+          avg_keystroke_delay: 0,
+          mouse_velocity: 0,
+          tab_switch_count: trackData.current.tabSwitches,
+          active_processes: "Login Screen",
+          bytes_sent: 0,
+          risk_status: ["ANOMALY_BRUTE_FORCE"]
+        };
+        await safeFetchJson("/api/db", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "RECORD_FAILED_ATTEMPTS", payload: { username, attempts: newAttemptCount, telemetry } })
+        });
+      } else if (newAttemptCount >= 3 && bruteForceReported) {
+        const telemetry = {
+          ip_address: spoofIp || trackData.current.ip,
+          lat: trackData.current.lat,
+          lon: trackData.current.lon,
+          os: trackData.current.os,
+          resolution: `${window.innerWidth}x${window.innerHeight}`,
+          avg_keystroke_delay: 0,
+          mouse_velocity: 0,
+          tab_switch_count: trackData.current.tabSwitches,
+          active_processes: "Login Screen",
+          bytes_sent: 0,
+          risk_status: ["ANOMALY_BRUTE_FORCE"]
+        };
+        await safeFetchJson("/api/db", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "RECORD_FAILED_ATTEMPTS", payload: { username, attempts: newAttemptCount, telemetry } })
+        });
+      }
+    }
+    setIsLoggingIn(false);
+  };
+
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpValue) return;
+    setIsLoggingIn(true);
+    setOtpError("");
+    
+    const delays = trackData.current.keystrokeDelays;
+    let avgKey = delays.length ? delays.reduce((a, b) => a + b) / delays.length : 0;
+    let currentMouseVel = trackData.current.mouseVelocity;
+    const loc = selectedLocationIdx >= 0 ? PRESET_LOCATIONS[selectedLocationIdx] : null;
+    const isCustomLoc = loc?.label === "Custom Location";
+    if (isBotMode) { avgKey = 0.005; currentMouseVel = 8500; }
+    else if (spoofIp || selectedLocationIdx >= 0) { avgKey = keystrokeDelayOverride; currentMouseVel = mouseVelocityOverride; }
+
+    const tel = {
+      ip_address: spoofIp || trackData.current.ip,
+      lat: selectedLocationIdx < 0 ? trackData.current.lat : (isCustomLoc ? parseFloat(customLat) || 0 : loc!.lat),
+      lon: selectedLocationIdx < 0 ? trackData.current.lon : (isCustomLoc ? parseFloat(customLon) || 0 : loc!.lon),
+      os: trackData.current.os,
+      resolution: `${window.innerWidth}x${window.innerHeight}`,
+      avg_keystroke_delay: avgKey,
+      mouse_velocity: currentMouseVel,
+      tab_switch_count: trackData.current.tabSwitches,
+      active_processes: activeProcesses,
+      bytes_sent: trackData.current.totalBytes,
+      protocol: "HTTPS",
+      attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts
+    };
+
+    const res = await safeFetchJson("http://localhost:8000/api/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, otp: otpValue, ...tel })
+    });
+
+    if (res.success && res.data && res.data.status === "success") {
+      setAuthStep("login");
+      setIsLoggedIn(true);
+      setStatus("🟢 Secure Session Active. Monitor Workspace...");
+      setAuthMessage(null);
+    } else {
+      const errorMsg = (!res.success && res.error) ? res.error : (res.data && res.data.message) ? res.data.message : "Invalid verification code.";
+      setOtpError(errorMsg);
+    }
+    setIsLoggingIn(false);
+  };
+
+  const handleSignupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signupUsername || !signupPassword || !signupEmail) return;
+    setIsLoggingIn(true);
+    setAuthMessage(null);
+
+    const latVal = parseFloat(signupLat) || 0.0;
+    const lonVal = parseFloat(signupLon) || 0.0;
+    
+    const res = await safeFetchJson("/api/db", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "CREATE_ACCOUNT",
+        payload: {
+          username: signupUsername,
+          password: signupPassword,
+          email: signupEmail,
+          trustedLocations: [
+            { lat: latVal, lon: lonVal, label: signupLabel }
+          ]
+        }
+      })
+    });
+
+    if (res.success && res.data && res.data.success) {
+      setAuthMessage({ type: "success", text: "Account created successfully! You can now log in." });
+      setAuthStep("login");
+      // Reset fields
+      setSignupUsername("");
+      setSignupPassword("");
+      setSignupEmail("");
+      setSignupLat("");
+      setSignupLon("");
+      fetchUsers();
+    } else {
+      const errorMsg = (!res.success && res.error) ? res.error : (res.data && res.data.error) ? res.data.error : "Failed to create account.";
+      setAuthMessage({ type: "error", text: errorMsg });
+    }
+    setIsLoggingIn(false);
+  };
+
+  const handleForgotRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotUsername) return;
+    setIsLoggingIn(true);
+    setAuthMessage(null);
+
+    const res = await safeFetchJson("http://localhost:8000/api/forgot-password/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: forgotUsername })
+    });
+
+    if (res.success && res.data && res.data.status === "success") {
+      setAuthMessage({ type: "success", text: "Reset code sent to your email (and logged to terminal!)." });
+      setForgotStep("verify");
+    } else {
+      const errorMsg = (!res.success && res.error) ? res.error : (res.data && res.data.message) ? res.data.message : "Failed to request password reset.";
+      setAuthMessage({ type: "error", text: errorMsg });
+    }
+    setIsLoggingIn(false);
+  };
+
+  const handleForgotReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotUsername || !forgotOtp || !forgotNewPassword) return;
+    setIsLoggingIn(true);
+    setAuthMessage(null);
+
+    const res = await safeFetchJson("http://localhost:8000/api/forgot-password/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: forgotUsername,
+        otp: forgotOtp,
+        new_password: forgotNewPassword
+      })
+    });
+
+    if (res.success && res.data && res.data.status === "success") {
+      setAuthMessage({ type: "success", text: "Password reset successfully! Log in with your new password." });
+      setAuthStep("login");
+      setForgotUsername("");
+      setForgotOtp("");
+      setForgotNewPassword("");
+      setForgotStep("request");
+    } else {
+      const errorMsg = (!res.success && res.error) ? res.error : (res.data && res.data.message) ? res.data.message : "Failed to reset password.";
+      setAuthMessage({ type: "error", text: errorMsg });
     }
     setIsLoggingIn(false);
   };
@@ -738,6 +873,98 @@ export default function PrototypePage() {
                     </button>
                   </div>
                 </form>
+              ) : authStep === "signup" ? (
+                <form onSubmit={handleSignupSubmit} className="space-y-4">
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
+                    <ShieldAlert className="text-blue-600 dark:text-blue-500 w-5 h-5" /> Create Secure Account
+                  </h2>
+
+                  {authMessage && (
+                    <div className={`mb-4 p-3 rounded-xl text-sm font-semibold flex items-center gap-2 ${authMessage.type === "success" ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-800/50' : 'bg-rose-900/30 text-rose-400 border border-rose-800/50'}`}>
+                      {authMessage.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                      <span className="break-words">{authMessage.text}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1 tracking-wider">Username</label>
+                      <input suppressHydrationWarning type="text" value={signupUsername} onChange={(e) => setSignupUsername(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-2.5 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 text-sm" placeholder="Choose a username" required />
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1 tracking-wider">Password</label>
+                      <input suppressHydrationWarning type="password" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-2.5 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 text-sm" placeholder="Choose a secure password" required />
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1 tracking-wider">Email Address</label>
+                      <input suppressHydrationWarning type="email" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-2.5 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 text-sm" placeholder="yourname@domain.com" required />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1 tracking-wider">Trusted Lat</label>
+                        <input suppressHydrationWarning type="number" step="any" value={signupLat} onChange={(e) => setSignupLat(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-2.5 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 text-sm" placeholder="e.g. 28.61" required />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1 tracking-wider">Trusted Lon</label>
+                        <input suppressHydrationWarning type="number" step="any" value={signupLon} onChange={(e) => setSignupLon(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-2.5 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 text-sm" placeholder="e.g. 77.20" required />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1 tracking-wider">Location Label</label>
+                      <input suppressHydrationWarning type="text" value={signupLabel} onChange={(e) => setSignupLabel(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-2.5 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 text-sm" placeholder="e.g. Home, Office" required />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button suppressHydrationWarning type="button" onClick={() => { setAuthStep("login"); setAuthMessage(null); }} className="w-1/3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2.5 px-4 rounded-xl transition-all text-sm">Cancel</button>
+                    <button suppressHydrationWarning type="submit" disabled={isLoggingIn} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-2.5 px-4 rounded-xl transition-all disabled:opacity-40 shadow-lg shadow-blue-600/20 text-sm flex items-center justify-center gap-2">
+                      {isLoggingIn ? "Registering..." : "Sign Up"}
+                    </button>
+                  </div>
+                </form>
+              ) : authStep === "forgot_password" ? (
+                <form onSubmit={forgotStep === "request" ? handleForgotRequest : handleForgotReset} className="space-y-4">
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
+                    <ShieldAlert className="text-blue-600 dark:text-blue-500 w-5 h-5" /> Reset Password
+                  </h2>
+
+                  {authMessage && (
+                    <div className={`mb-4 p-3 rounded-xl text-sm font-semibold flex items-center gap-2 ${authMessage.type === "success" ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-800/50' : 'bg-rose-900/30 text-rose-400 border border-rose-800/50'}`}>
+                      {authMessage.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                      <span className="break-words">{authMessage.text}</span>
+                    </div>
+                  )}
+
+                  {forgotStep === "request" ? (
+                    <div className="space-y-3">
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        Enter your username. We will email a 6-digit verification code to your registered email address.
+                      </p>
+                      <div>
+                        <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1 tracking-wider">Username</label>
+                        <input suppressHydrationWarning type="text" value={forgotUsername} onChange={(e) => setForgotUsername(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" placeholder="e.g. alice_wong" required />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1 tracking-wider">Reset Code (OTP)</label>
+                        <input suppressHydrationWarning type="text" value={forgotOtp} onChange={(e) => setForgotOtp(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 font-mono tracking-widest text-center" placeholder="123456" maxLength={6} required />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1 tracking-wider">New Password</label>
+                        <input suppressHydrationWarning type="password" value={forgotNewPassword} onChange={(e) => setForgotNewPassword(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" placeholder="••••••••" required />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button suppressHydrationWarning type="button" onClick={() => { setAuthStep("login"); setForgotStep("request"); setAuthMessage(null); }} className="w-1/3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-3 px-4 rounded-xl transition-all">Cancel</button>
+                    <button suppressHydrationWarning type="submit" disabled={isLoggingIn} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40 shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+                      {isLoggingIn ? "Processing..." : forgotStep === "request" ? "Send Code" : "Reset Password"}
+                    </button>
+                  </div>
+                </form>
               ) : !isLoggedIn ? (
                 <>
                   <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
@@ -757,7 +984,10 @@ export default function PrototypePage() {
                       <input suppressHydrationWarning type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" placeholder="e.g. Admin" required />
                     </div>
                     <div>
-                      <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1.5 tracking-wider">Password</label>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold tracking-wider">Password</label>
+                        <button type="button" onClick={() => { setAuthStep("forgot_password"); setForgotStep("request"); setAuthMessage(null); }} className="text-xs text-blue-500 hover:text-blue-400 hover:underline transition-colors font-bold">Forgot Password?</button>
+                      </div>
                       <input suppressHydrationWarning type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600" placeholder="••••••••" required />
                     </div>
 
@@ -776,6 +1006,11 @@ export default function PrototypePage() {
                         </>
                       ) : "Secure Login"}
                     </button>
+                    
+                    <div className="pt-2 text-center text-sm text-slate-500">
+                      Don't have an account?{" "}
+                      <button type="button" onClick={() => { setAuthStep("signup"); setAuthMessage(null); }} className="text-blue-500 hover:text-blue-400 font-bold hover:underline transition-colors">Sign Up</button>
+                    </div>
                   </form>
                 </>
               ) : (

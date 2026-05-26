@@ -557,6 +557,30 @@ export default function App() {
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [isRetraining, setIsRetraining] = useState(false);
+  const [retrainStatus, setRetrainStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  const handleRetrain = async () => {
+    setIsRetraining(true);
+    setRetrainStatus('idle');
+    try {
+      const res = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'RETRAIN_MODELS' }),
+      });
+      if (res.ok) {
+        setRetrainStatus('success');
+      } else {
+        setRetrainStatus('error');
+      }
+    } catch {
+      setRetrainStatus('error');
+    } finally {
+      setIsRetraining(false);
+      setTimeout(() => setRetrainStatus('idle'), 5000);
+    }
+  };
 
   const handleRowClick = (session: Session) => {
     setSelectedSessionId(session.id);
@@ -767,6 +791,33 @@ export default function App() {
             title="Refresh Telemetry"
           >
             <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+          </button>
+
+          {/* Retrain Models Button */}
+          <button
+            id="retrain-models-btn"
+            onClick={handleRetrain}
+            disabled={isRetraining}
+            title="Retrain ML models from live DB sessions"
+            className={`flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-semibold border transition-all shadow-sm ${
+              isRetraining
+                ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800/50 cursor-wait'
+                : retrainStatus === 'success'
+                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50'
+                : retrainStatus === 'error'
+                ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800/50'
+                : 'bg-white dark:bg-slate-800 text-violet-600 dark:text-violet-400 border-slate-200 dark:border-slate-700 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:border-violet-300 dark:hover:border-violet-700'
+            }`}
+          >
+            {isRetraining ? (
+              <><svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Training…</>
+            ) : retrainStatus === 'success' ? (
+              <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Models Updated</>  
+            ) : retrainStatus === 'error' ? (
+              <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>Retrain Failed</>
+            ) : (
+              <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>Retrain Models</>
+            )}
           </button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import datetime
@@ -9,6 +9,16 @@ from email.message import EmailMessage
 import os
 from dotenv import load_dotenv
 from email_template import get_otp_email_html, get_otp_email_text, get_brute_force_email_html, get_brute_force_email_text
+
+# Import database manager functions
+from db_manager import (
+    init_db, create_account, verify_login, record_login, 
+    record_failed_attempts, get_sessions, get_users, get_analytics,
+    reset_password, get_user_email
+)
+
+# Import ML pipeline
+from ml_pipeline import ml_score, load_models, train_models, models_ready
 
 load_dotenv()
 
@@ -35,8 +45,19 @@ def is_trusted_location(lat, lon, trusted_locs):
 
 app = FastAPI()
 
+@app.on_event("startup")
+def startup_event():
+    init_db()
+    # Load ML models — non-fatal, falls back to rule-based if not found
+    loaded = load_models()
+    if loaded:
+        print("[ML] Models loaded successfully — using ML-based threat scoring.")
+    else:
+        print("[ML] Models not found — using rule-based scoring. Run /api/retrain to train.")
+
 # --- NEW: OTP Storage & Email Config ---
 active_otps = {}
+forgot_password_otps = {}
 
 # Replace these sample credentials with your actual Gmail address and App Password
 SENDER_EMAIL = "neurometric.alert@gmail.com"
@@ -140,10 +161,14 @@ class CustomThresholds(BaseModel):
     bot_mouse_velocity: float = 3000
     bot_keystroke_delay: float = 0.05
     suspicious_attempts: int = 4      # OTP triggered at this many attempts
-    brute_force_attempts: int = 6     # Brute-force critical at this many attempts
+    brute_force_attempts: int = 4     # Brute-force critical at this many attempts
     high_data_mb: float = 50
 
-def calculate_threat_score(data: dict, t: CustomThresholds) -> dict:
+def _rule_based_score(data: dict, t: CustomThresholds) -> dict:
+    """
+    Rule-based fallback threat scorer.
+    Used ONLY when ML models are not loaded.
+    """
     is_bot = data.get("avg_keystroke_delay", 1.0) < t.bot_keystroke_delay or data.get("mouse_velocity", 0) > t.bot_mouse_velocity
     is_distracted = "Slack" in data.get("active_processes", "") or data.get("tab_switch_count", 0) > 2
     behavior_anomaly = 1.0 if is_bot else (0.5 if is_distracted else 0.0)
@@ -159,10 +184,11 @@ def calculate_threat_score(data: dict, t: CustomThresholds) -> dict:
     network_anomaly = 1.0 if is_hacker else (0.8 if is_high_data else 0.0)
 
     weights = (0.3, 0.5, 0.2)
-    threat_score = (weights[0] * login_anomaly +
-                    weights[1] * behavior_anomaly +
-                    weights[2] * network_anomaly)
-    
+    threat_score = round(
+        weights[0] * login_anomaly + weights[1] * behavior_anomaly + weights[2] * network_anomaly,
+        3
+    )
+
     if threat_score < 0.4:
         verdict = 'SAFE'
         color = '#16a34a'
@@ -172,12 +198,28 @@ def calculate_threat_score(data: dict, t: CustomThresholds) -> dict:
     else:
         verdict = 'CRITICAL (Block)'
         color = '#dc2626'
-        
-    return {
-        'threat_score': round(threat_score, 3),
-        'verdict': verdict,
-        'color': color
-    }
+
+    return {'threat_score': threat_score, 'verdict': verdict, 'color': color}
+
+
+def calculate_threat_score(data: dict, t: CustomThresholds) -> dict:
+    """
+    Primary threat scorer. Uses trained ML models when available,
+    falls back to rule-based logic otherwise.
+    """
+    # Enrich data dict with flags ml_score needs
+    procs = data.get("active_processes", "")
+    HACKER_TOOLS = {"Tor", "Wireshark", "nmap", "Burp", "Hydra",
+                    "Metasploit", "Netcat", "Mimikatz", "sqlmap"}
+    data["has_hacker_tools"] = int(any(tool in procs for tool in HACKER_TOOLS))
+    data["is_unknown_location"] = data.get("is_unknown_location", 0)
+
+    ml_result = ml_score(data)
+    if ml_result is not None:
+        return ml_result
+
+    # Fallback
+    return _rule_based_score(data, t)
 
 class LoginPayload(BaseModel):
     username: str
@@ -210,58 +252,55 @@ async def evaluate_login(payload: LoginPayload):
 
     # Use custom thresholds from payload if provided, otherwise use defaults
     t = payload.custom_thresholds or CustomThresholds()
-
     score_data = calculate_threat_score(payload.dict(), t)
-    full_record["threat_score"] = score_data["threat_score"]
-    
-    # AI EVALUATION LOGIC WITH ADAPTIVE MFA
-    is_bot = payload.avg_keystroke_delay < t.bot_keystroke_delay or payload.mouse_velocity > t.bot_mouse_velocity
-    is_hacker = any(tool in payload.active_processes for tool in ["Tor", "Wireshark", "nmap", "Burp", "Hydra", "Metasploit", "Netcat"])
-    has_excessive_attempts = payload.attempts >= t.suspicious_attempts or payload.login_attempts_override >= t.suspicious_attempts
-    is_brute_force = payload.attempts >= t.brute_force_attempts or payload.login_attempts_override >= t.brute_force_attempts
-    is_distracted = "Slack" in payload.active_processes or payload.tab_switch_count > 2
-    bytes_sent_mb = payload.bytes_sent / (1024 * 1024)
-    is_high_data = bytes_sent_mb >= t.high_data_mb
+    threat_score = score_data["threat_score"]
+    print(f"DEBUG EVALUATE: username={payload.username} threat_score={threat_score} score_data={score_data}")
+    verdict      = score_data["verdict"]   # "SAFE" | "WARNING (MFA Recommended)" | "CRITICAL (Block)"
+    full_record["threat_score"] = threat_score
+    full_record["color"]        = score_data["color"]
 
-    # Priority: brute force / high data first (definite MFA), then suspicious attempts, then bot/hacker
-    if is_brute_force or is_high_data:
-        full_record["risk_status"] = "WARNING (MFA Triggered)"
+    # ── Action derivation from ML threat score ──
+    # CRITICAL  (≥ 0.70) → block outright
+    # WARNING   (≥ 0.40) → trigger MFA (OTP email)
+    # SAFE      (<  0.40) → let through
+    #
+    # Hard-override: even if ML says WARNING, always send MFA email
+    # when brute-force is detected (many attempts) — belt-and-suspenders.
+    is_brute_force = (
+        payload.attempts >= t.brute_force_attempts
+        or payload.login_attempts_override >= t.brute_force_attempts
+    )
+
+    if is_brute_force:
+        full_record["risk_status"] = "WARNING (MFA Triggered - Brute Force)"
         full_record["color"] = "#f59e0b"
         action = "mfa_required"
         otp = str(random.randint(100000, 999999))
         active_otps[payload.username] = otp
         send_otp_email(payload.email, otp, payload.username)
-    elif has_excessive_attempts:
-        full_record["risk_status"] = "WARNING (MFA Triggered)"
-        full_record["color"] = "#f59e0b"
-        action = "mfa_required"
-        otp = str(random.randint(100000, 999999))
-        active_otps[payload.username] = otp
-        send_otp_email(payload.email, otp, payload.username)
-    elif is_bot or is_hacker:
+    elif threat_score >= 0.75:
         full_record["risk_status"] = "CRITICAL ANOMALY (Blocked)"
-        full_record["color"] = "#dc2626"
         action = "blocked"
-    elif is_distracted:
-        # Distracted = warning but not blocked or OTP required
-        full_record["risk_status"] = "WARNING (Distracted User)"
-        full_record["color"] = "#f59e0b"
+    elif threat_score >= 0.40:
+        full_record["risk_status"] = "WARNING (MFA Triggered)"
         action = "mfa_required"
+        otp = str(random.randint(100000, 999999))
+        active_otps[payload.username] = otp
+        send_otp_email(payload.email, otp, payload.username)
     else:
         full_record["risk_status"] = "SAFE (Authenticated)"
-        full_record["color"] = "#16a34a"
         action = "success"
 
-    # Location trust check — use user's own trusted locations if provided
+    # Location trust check — append flag if login is from an unfamiliar location
     is_unknown_location = not is_trusted_location(payload.lat, payload.lon, payload.user_trusted_locations or [])
     if is_unknown_location:
         full_record["risk_status"] = str(full_record.get("risk_status", "")) + " | UNKNOWN_LOCATION"
 
-    # Always broadcast 1 combined log
+    # Always broadcast 1 combined log to SOC dashboard
     full_record["risk_status"] = full_record["risk_status"] + " (streaming)" if "SAFE" in full_record["risk_status"] else full_record["risk_status"]
     await manager.broadcast_to_soc(full_record)
-    
-    return {"status": action, "message": "Evaluation complete"}
+
+    return {"status": action, "message": "Evaluation complete", "scoring_mode": "ml" if models_ready() else "rule-based", "threat_score": threat_score}
 
 
 
@@ -329,6 +368,150 @@ async def alert_brute_force(payload: AlertPayload):
     except Exception as e:
         print(f"Failed to send alert email: {e}")
         return {"status": "error"}
+
+
+# --- DATABASE & FORGOT PASSWORD ENDPOINTS ---
+
+class DbPayload(BaseModel):
+    action: str
+    payload: dict | None = None
+
+@app.post("/api/db")
+async def db_endpoint(payload: DbPayload):
+    action = payload.action
+    p = payload.payload or {}
+    
+    if action == "GET_USERS":
+        return get_users()
+    elif action == "GET_SESSIONS":
+        return get_sessions()
+    elif action == "GET_ANALYTICS":
+        return get_analytics()
+    elif action == "CREATE_ACCOUNT":
+        username = p.get("username")
+        password = p.get("password")
+        email = p.get("email")
+        trusted_locations = p.get("trustedLocations", [])
+        return create_account(username, password, email, trusted_locations)
+    elif action == "VERIFY_LOGIN":
+        username = p.get("username")
+        password = p.get("password")
+        return verify_login(username, password)
+    elif action == "RECORD_LOGIN":
+        username = p.get("username")
+        password = p.get("password")
+        telemetry = p.get("telemetry", {})
+        return record_login(username, password, telemetry)
+    elif action == "RECORD_FAILED_ATTEMPTS":
+        username = p.get("username")
+        attempts = p.get("attempts", 1)
+        telemetry = p.get("telemetry", {})
+        return record_failed_attempts(username, attempts, telemetry)
+    elif action == "RESET_PASSWORD":
+        username = p.get("username")
+        password = p.get("password")
+        return reset_password(username, password)
+    else:
+        return {"success": False, "error": "Invalid action"}
+
+
+# ─── ML RETRAIN ENDPOINT ──────────────────────────────────────────────────────
+@app.post("/api/retrain")
+async def retrain_models(background_tasks: BackgroundTasks):
+    """
+    Triggers model retraining using all sessions currently in the DB
+    augmented with synthetic data. Runs in background so the API
+    stays responsive during training.
+    """
+    db_path = os.path.join(os.path.dirname(__file__), "anomaly_detection.db")
+
+    def _do_retrain():
+        print("[ML] Retraining started...")
+        success = train_models(db_path=db_path)
+        if success:
+            load_models()  # hot-reload into memory
+            print("[ML] Retraining complete — new models loaded.")
+        else:
+            print("[ML] Retraining failed.")
+
+    background_tasks.add_task(_do_retrain)
+    return {"status": "queued", "message": "Model retraining started in background. This may take 30-60 seconds."}
+
+def send_reset_email(target_email: str, otp: str, username: str = "User"):
+    msg = EmailMessage()
+    msg.set_content(f"Hello {username},\n\nYou requested a password reset for your NeurometricShield account. Use the verification code below to set a new password:\n\n{otp}\n\nThis code will expire in 10 minutes. If you did not request a password reset, please ignore this email.\n\nBest regards,\nNeurometricShield Team")
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #f3f4f6; padding: 30px;">
+      <div style="max-width: 500px; background: #0f172a; color: #ffffff; padding: 25px; border-radius: 8px; border: 1px solid #1e293b; margin: auto;">
+        <h2 style="color: #ffffff; text-align: center; margin-bottom: 5px;">Neurometric<span style="color: #3b82f6;">Shield</span></h2>
+        <p style="color: #94a3b8; text-align: center; font-size: 14px; margin-top: 0;">Password Reset Request</p>
+        <hr style="border-color: #1e293b; margin: 20px 0;">
+        <p>Hello <strong>{username}</strong>,</p>
+        <p>We received a request to reset your password. Use the verification code below to complete the reset:</p>
+        <div style="background-color: #1e293b; border: 1px solid #334155; padding: 20px; text-align: center; border-radius: 6px; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #38bdf8; margin: 20px 0;">
+          {otp}
+        </div>
+        <p style="font-size: 13px; color: #94a3b8;">This code will expire in 10 minutes. If you did not make this request, you can safely ignore this email.</p>
+      </div>
+    </body>
+    </html>
+    """
+    msg.add_alternative(html_content, subtype='html')
+    msg['Subject'] = '🔑 NeurometricShield: Password Reset Code'
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = target_email
+
+    try:
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        print(f"Password reset email sent to {target_email}")
+        return True
+    except Exception as e:
+        print(f"Failed to send password reset email to {target_email}: {e}")
+        return False
+
+class ForgotRequestPayload(BaseModel):
+    username: str
+
+class ForgotResetPayload(BaseModel):
+    username: str
+    otp: str
+    new_password: str
+
+@app.post("/api/forgot-password/request")
+async def forgot_password_request(payload: ForgotRequestPayload):
+    username = payload.username
+    email = get_user_email(username)
+    if not email:
+        return {"status": "error", "message": "User not found or has no email registered"}
+    
+    otp = str(random.randint(100000, 999999))
+    forgot_password_otps[username] = otp
+    print(f"FORGOT_PASSWORD_OTP for {username}: {otp}")
+    
+    send_reset_email(email, otp, username)
+    return {"status": "success", "message": "Verification code sent to your registered email"}
+
+@app.post("/api/forgot-password/reset")
+async def forgot_password_reset(payload: ForgotResetPayload):
+    username = payload.username
+    otp = payload.otp
+    new_password = payload.new_password
+    
+    if username in forgot_password_otps and str(forgot_password_otps[username]) == str(otp):
+        del forgot_password_otps[username]
+        res = reset_password(username, new_password)
+        if res["success"]:
+            return {"status": "success", "message": "Password reset successfully"}
+        else:
+            return {"status": "error", "message": res.get("error", "Failed to reset password")}
+    
+    return {"status": "error", "message": "Invalid OTP code"}
 
 
 @app.websocket("/ws/soc")
