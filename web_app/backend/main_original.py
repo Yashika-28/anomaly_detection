@@ -144,7 +144,7 @@ class LoginPayload(BaseModel):
     active_processes: str = ""
     attempts: int
     login_attempts_override: int
-    email: str | None = "nischalsharma2037@gmail.com"
+    email: str | None = "user@example.com"
     custom_thresholds: CustomThresholds | None = None
     # Per-user trusted locations for location-risk check (fetched from DB by prototype)
     user_trusted_locations: list | None = None

@@ -119,6 +119,10 @@ cd anomaly_detection
    SENDER_EMAIL = "your email address"
    SENDER_PASSWORD = "your-app-password"
    ```
+   
+   > [!TIP]
+   > **Demo/Mock Email Support**: If you use a mock or example email address (such as domains ending in `@example.com`, `@ncuindia.edu`, `@company.com`, `@corp.com`, or `@domain.com`), the backend will automatically bypass SMTP network requests to prevent connection or credential errors. The generated 6-digit MFA verification or Password Reset code is printed directly into the **FastAPI server terminal** in a highly visible ASCII box, and a helpful warning banner is rendered on the frontend UI.
+
 5. Start the FastAPI backend server:
    ```bash
    uvicorn main:app --reload --port 8000

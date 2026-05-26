@@ -105,6 +105,8 @@ export default function PrototypePage() {
   const [forgotOtp, setForgotOtp] = useState("");
   const [forgotNewPassword, setForgotNewPassword] = useState("");
   const [forgotStep, setForgotStep] = useState<"request" | "verify">("request");
+  const [isMockEmailFlow, setIsMockEmailFlow] = useState(false);
+  const [mockEmailAddress, setMockEmailAddress] = useState("");
   const [bruteForceReported, setBruteForceReported] = useState(false);
   const [banUntil, setBanUntil] = useState<number | null>(null);
   const [banTimeRemaining, setBanTimeRemaining] = useState<number>(0);
@@ -447,7 +449,7 @@ export default function PrototypePage() {
         bytes_sent: trackData.current.totalBytes,
         login_attempts_override: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
         attempts: loginAttemptOverride > 1 ? loginAttemptOverride : loginAttempts,
-        email: userList.find(u => u.username === username)?.email || "nischalsharma2037@gmail.com"
+        email: userList.find(u => u.username === username)?.email || "user@example.com"
       };
 
       const evalRes = await safeFetchJson("http://localhost:8000/api/evaluate", {
@@ -459,6 +461,8 @@ export default function PrototypePage() {
       if (evalRes.success && evalRes.data) {
         const evalData = evalRes.data;
         if (evalData.status === "mfa_required") {
+          setIsMockEmailFlow(!!evalData.is_mock_email);
+          setMockEmailAddress(evalData.email || "");
           setAuthStep("otp");
           setIsLoggingIn(false);
           return;
@@ -480,7 +484,7 @@ export default function PrototypePage() {
 
       // Brute force security alert email: triggered at 3+ wrong attempts
       if (newAttemptCount >= 3) {
-        const targetEmail = userList.find(u => u.username === username)?.email || "nischalsharma2037@gmail.com";
+        const targetEmail = userList.find(u => u.username === username)?.email || "user@example.com";
         await safeFetchJson("http://localhost:8000/api/alert-brute-force", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -635,7 +639,9 @@ export default function PrototypePage() {
     });
 
     if (res.success && res.data && res.data.status === "success") {
-      setAuthMessage({ type: "success", text: "Reset code sent to your email (and logged to terminal!)." });
+      setIsMockEmailFlow(!!res.data.is_mock_email);
+      setMockEmailAddress(res.data.email || "");
+      setAuthMessage({ type: "success", text: res.data.is_mock_email ? "Reset code generated (mock email - check backend console)." : "Reset code sent to your registered email." });
       setForgotStep("verify");
     } else {
       const errorMsg = (!res.success && res.error) ? res.error : (res.data && res.data.message) ? res.data.message : "Failed to request password reset.";
@@ -667,6 +673,8 @@ export default function PrototypePage() {
       setForgotOtp("");
       setForgotNewPassword("");
       setForgotStep("request");
+      setIsMockEmailFlow(false);
+      setMockEmailAddress("");
     } else {
       const errorMsg = (!res.success && res.error) ? res.error : (res.data && res.data.message) ? res.data.message : "Failed to reset password.";
       setAuthMessage({ type: "error", text: errorMsg });
@@ -809,6 +817,7 @@ export default function PrototypePage() {
     setLoginAttempts(0); setBruteForceReported(false);
     setSelectedEmail(null); setComposeOpen(false); setUploadedFiles([]);
     setAuthStep("login"); setOtpValue(""); setOtpError("");
+    setIsMockEmailFlow(false); setMockEmailAddress("");
     trackData.current.keystrokeDelays = []; trackData.current.tabSwitches = 0;
     trackData.current.totalBytes = 0; trackData.current.downloadedBytes = 0;
     trackData.current.keystrokeCount = 0; trackData.current.mouseVelocity = 0;
@@ -877,6 +886,16 @@ export default function PrototypePage() {
                     Unusual behavior detected. Please enter the verification code sent to your email.
                   </p>
 
+                  {isMockEmailFlow && (
+                    <div className="p-3 rounded-xl text-xs bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-semibold leading-relaxed flex items-start gap-2.5 shadow-sm">
+                      <span className="text-base select-none leading-none">💡</span>
+                      <div>
+                        <strong className="block mb-0.5 text-amber-700 dark:text-amber-300">Mock Account Notice:</strong>
+                        The email <code className="font-mono bg-amber-500/5 px-1 rounded">{mockEmailAddress}</code> is a mock/example email domain. Please check the backend uvicorn terminal to retrieve the 6-digit verification code.
+                      </div>
+                    </div>
+                  )}
+
                   {otpError && (
                     <div className="mb-4 p-3 rounded-xl text-sm font-semibold flex items-center gap-2 bg-rose-900/30 text-rose-400 border border-rose-800/50">
                       <AlertTriangle className="w-4 h-4" />
@@ -890,7 +909,7 @@ export default function PrototypePage() {
                   </div>
 
                   <div className="flex gap-3 pt-2">
-                    <button suppressHydrationWarning type="button" onClick={() => setAuthStep("login")} disabled={isLoggingIn} className="w-1/3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40">Cancel</button>
+                    <button suppressHydrationWarning type="button" onClick={() => { setAuthStep("login"); setIsMockEmailFlow(false); setMockEmailAddress(""); }} disabled={isLoggingIn} className="w-1/3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40">Cancel</button>
                     <button suppressHydrationWarning type="submit" disabled={!otpValue || isLoggingIn} className="flex-1 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40 shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2">
                       {isLoggingIn ? "Verifying..." : "Verify Code"}
                     </button>
@@ -970,6 +989,15 @@ export default function PrototypePage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
+                      {isMockEmailFlow && (
+                        <div className="p-3 rounded-xl text-xs bg-blue-500/10 dark:bg-blue-950/30 border border-blue-500/20 text-blue-600 dark:text-blue-400 font-semibold leading-relaxed flex items-start gap-2.5 shadow-sm">
+                          <span className="text-base select-none leading-none">💡</span>
+                          <div>
+                            <strong className="block mb-0.5 text-blue-700 dark:text-blue-300">Mock Account Notice:</strong>
+                            The email <code className="font-mono bg-blue-500/5 px-1 rounded">{mockEmailAddress}</code> is a mock/example email domain. Please check the backend uvicorn terminal to retrieve the 6-digit password reset code.
+                          </div>
+                        </div>
+                      )}
                       <div>
                         <label className="block text-xs uppercase text-slate-600 dark:text-slate-500 font-bold mb-1 tracking-wider">Reset Code (OTP)</label>
                         <input suppressHydrationWarning type="text" value={forgotOtp} onChange={(e) => setForgotOtp(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-700/80 rounded-xl p-3 text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 font-mono tracking-widest text-center" placeholder="123456" maxLength={6} required />
@@ -982,7 +1010,7 @@ export default function PrototypePage() {
                   )}
 
                   <div className="flex gap-3 pt-2">
-                    <button suppressHydrationWarning type="button" onClick={() => { setAuthStep("login"); setForgotStep("request"); setAuthMessage(null); }} className="w-1/3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-3 px-4 rounded-xl transition-all">Cancel</button>
+                    <button suppressHydrationWarning type="button" onClick={() => { setAuthStep("login"); setForgotStep("request"); setAuthMessage(null); setIsMockEmailFlow(false); setMockEmailAddress(""); }} className="w-1/3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-3 px-4 rounded-xl transition-all">Cancel</button>
                     <button suppressHydrationWarning type="submit" disabled={isLoggingIn} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-40 shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
                       {isLoggingIn ? "Processing..." : forgotStep === "request" ? "Send Code" : "Reset Password"}
                     </button>

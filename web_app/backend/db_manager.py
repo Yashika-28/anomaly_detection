@@ -123,7 +123,7 @@ def init_db():
             },
             "alice_wong": {
                 "password": "pass789",
-                "email": "nischalsharma2037@gmail.com",
+                "email": "alice_wong@example.com",
                 "attempts": 6,
                 "trustedLocations": [
                     { "lat": 1.3521, "lon": 103.8198, "label": "Singapore (Home)" },

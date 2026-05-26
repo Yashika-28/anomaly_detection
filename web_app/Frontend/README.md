@@ -55,3 +55,6 @@ The frontend performs two core jobs:
    * **Landing Page**: `http://localhost:3000`
    * **Simulation Portal**: `http://localhost:3000/prototype`
    * **SOC Control Center**: `http://localhost:3000/dashboard`
+
+> [!NOTE]
+> **Mock Email Banners**: When logging in or resetting passwords with mock email domains, the frontend will automatically display custom warning banners directing you to find the verification codes in the backend terminal logs.

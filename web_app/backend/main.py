@@ -63,7 +63,23 @@ forgot_password_otps = {}
 SENDER_EMAIL = "neurometric.alert@gmail.com"
 SENDER_PASSWORD = "ufgu ***"
 
+def is_example_email(email: str | None) -> bool:
+    if not email:
+        return False
+    email = email.lower().strip()
+    domain = email.split("@")[-1] if "@" in email else email
+    mock_domains = ["example.com", "domain.com", "ncuindia.edu", "company.com", "corp.com", "test.com"]
+    return any(dom in domain for dom in mock_domains)
+
 def send_otp_email(target_email: str, otp: str, username: str = "User"):
+    if is_example_email(target_email):
+        print("\n" + "="*80)
+        print(f"🔑 [MOCK EMAIL BYPASS] MFA OTP for user '{username}':")
+        print(f"   Email: {target_email}")
+        print(f"   Code:  {otp}")
+        print("="*80 + "\n")
+        return True
+
     msg = EmailMessage()
     msg.set_content(get_otp_email_text(otp, username))
     msg.add_alternative(get_otp_email_html(otp, username), subtype='html')
@@ -77,8 +93,10 @@ def send_otp_email(target_email: str, otp: str, username: str = "User"):
         server.send_message(msg)
         server.quit()
         print(f"OTP {otp} sent successfully to {target_email}")
+        return True
     except Exception as e:
         print(f"Failed to send email: {e}")
+        return False
 
 app.add_middleware(
     CORSMiddleware,
@@ -236,7 +254,7 @@ class LoginPayload(BaseModel):
     active_processes: str = ""
     attempts: int
     login_attempts_override: int
-    email: str | None = "nischalsharma2037@gmail.com"
+    email: str | None = "user@example.com"
     custom_thresholds: CustomThresholds | None = None
     user_trusted_locations: list | None = None
     is_login_flow: bool = False
@@ -300,7 +318,14 @@ async def evaluate_login(payload: LoginPayload):
     full_record["risk_status"] = full_record["risk_status"] + " (streaming)" if "SAFE" in full_record["risk_status"] else full_record["risk_status"]
     await manager.broadcast_to_soc(full_record)
 
-    return {"status": action, "message": "Evaluation complete", "scoring_mode": "ml" if models_ready() else "rule-based", "threat_score": threat_score}
+    return {
+        "status": action,
+        "message": "Evaluation complete",
+        "scoring_mode": "ml" if models_ready() else "rule-based",
+        "threat_score": threat_score,
+        "is_mock_email": is_example_email(payload.email),
+        "email": payload.email
+    }
 
 
 
@@ -351,6 +376,14 @@ class AlertPayload(BaseModel):
 
 @app.post("/api/alert-brute-force")
 async def alert_brute_force(payload: AlertPayload):
+    if is_example_email(payload.email):
+        print("\n" + "="*80)
+        print(f"🚨 [MOCK EMAIL BYPASS] Brute Force Alert for user '{payload.username}':")
+        print(f"   Email:    {payload.email}")
+        print(f"   Attempts: {payload.attempts}")
+        print("="*80 + "\n")
+        return {"status": "success", "is_mock_email": True}
+
     msg = EmailMessage()
     msg.set_content(get_brute_force_email_text(payload.attempts, payload.username))
     msg.add_alternative(get_brute_force_email_html(payload.attempts, payload.username), subtype='html')
@@ -438,6 +471,14 @@ async def retrain_models(background_tasks: BackgroundTasks):
     return {"status": "queued", "message": "Model retraining started in background. This may take 30-60 seconds."}
 
 def send_reset_email(target_email: str, otp: str, username: str = "User"):
+    if is_example_email(target_email):
+        print("\n" + "="*80)
+        print(f"🔑 [MOCK EMAIL BYPASS] Password Reset Code for user '{username}':")
+        print(f"   Email: {target_email}")
+        print(f"   Code:  {otp}")
+        print("="*80 + "\n")
+        return True
+
     msg = EmailMessage()
     msg.set_content(f"Hello {username},\n\nYou requested a password reset for your NeurometricShield account. Use the verification code below to set a new password:\n\n{otp}\n\nThis code will expire in 10 minutes. If you did not request a password reset, please ignore this email.\n\nBest regards,\nNeurometricShield Team")
     
@@ -495,7 +536,13 @@ async def forgot_password_request(payload: ForgotRequestPayload):
     print(f"FORGOT_PASSWORD_OTP for {username}: {otp}")
     
     send_reset_email(email, otp, username)
-    return {"status": "success", "message": "Verification code sent to your registered email"}
+    is_mock = is_example_email(email)
+    return {
+        "status": "success", 
+        "message": "Verification code sent to your registered email",
+        "is_mock_email": is_mock,
+        "email": email
+    }
 
 @app.post("/api/forgot-password/reset")
 async def forgot_password_reset(payload: ForgotResetPayload):
