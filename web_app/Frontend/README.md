@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🖥️ Neurometric Shield: Frontend Client Portals
 
-## Getting Started
+This directory contains the Next.js 16 (React 19 & TypeScript 5) web application for **Neurometric Shield**. It hosts the user landing pages, administrative SOC dashboards, and the interactive threat simulator.
 
-First, run the development server:
+> [!TIP]
+> For the complete system architecture, ML Isolation Forest math, database layout, and full testing scenarios, please refer to the primary [Root README.md](../../README.md).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 📂 Frontend App Router Structure
+
+```
+Frontend/
+├── 📁 app/
+│   ├── page.tsx            # Zero-Trust Landing Page (visual intro & core concepts)
+│   ├── 📁 prototype/
+│   │   └── page.tsx        # Interactive Login Portal & Attack Simulator
+│   ├── 📁 dashboard/
+│   │   └── page.tsx        # SOC Threat Hunting Console & live maps
+│   ├── 📁 api/
+│   │   └── 📁 db/
+│   │       └── route.ts    # REST proxy router to FastAPI backend service
+│   └── layout.tsx          # Global providers (theme and framing animation layouts)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ⚙️ How it Works & Telemetry Flow
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The frontend performs two core jobs:
 
-## Learn More
+1. **Client-Side Telemetry Collection**:
+   * Uses browser event listeners to track biometric hardware interactions: keystroke latency profiles, mouse speed vectors, and window tab-switching limits.
+   * Collects hardware/system variables: screen resolution classes and platform OS flags.
+   * Resolves client IP geo-location attributes asynchronously.
 
-To learn more about Next.js, take a look at the following resources:
+2. **WebSocket & REST Telemetry Streaming**:
+   * Pipes live typing and navigation events to the backend WebSocket stream (`ws://localhost:8000/ws/tracking`).
+   * REST calls are proxied through `/api/db` to `http://localhost:8000/api/db` to query and mutate database records securely.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🚀 Running the Frontend locally
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Ensure the backend FastAPI server is running on `http://localhost:8000`.
+2. Install the node packages:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+4. Access the web portals:
+   * **Landing Page**: `http://localhost:3000`
+   * **Simulation Portal**: `http://localhost:3000/prototype`
+   * **SOC Control Center**: `http://localhost:3000/dashboard`
