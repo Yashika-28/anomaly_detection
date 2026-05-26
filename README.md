@@ -32,7 +32,7 @@ By capturing real-time human-computer interaction (HCI) telemetry and contextual
                   │                      ▼                       │
                   │   ┌──────────────────────────────────────┐   │
                   │   │     Hybrid Action & Policy Engine    │   │
-                  │   │   ALLOW  │  MFA (Email OTP)  │  BLOCK    │   │
+                  │   │   ALLOW  │  MFA (Email OTP)  │  BLOCK│   │
                   │   └──────────────────┬───────────────────┘   │
                   └──────────────────────┼───────────────────────┘
                                          │ WSS SOC Broadcast
@@ -116,7 +116,7 @@ cd anomaly_detection
 4. **Configure Email Credentials (Optional)**:
    In `main.py`, under SMTP configurations, configure your Google App password if you want styled OTP and security alert emails dispatched to your inbox:
    ```python
-   SENDER_EMAIL = "neurometric.alert@gmail.com"
+   SENDER_EMAIL = "your email address"
    SENDER_PASSWORD = "your-app-password"
    ```
 5. Start the FastAPI backend server:
